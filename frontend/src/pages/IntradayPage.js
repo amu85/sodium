@@ -542,7 +542,64 @@ const IntradayPage = () => {
 
   return (
     <MainLayout>
-      <Container fluid className="py-4 px-lg-4" style={{ minHeight: '100vh' }}>
+      <style>{`
+        body.light-mode {
+          --page-bg: #f4f7f6;
+          --card-bg: #ffffff;
+          --text-main: #212529;
+          --text-muted: #6c757d;
+          --border-color: rgba(0,0,0,0.08);
+          --table-hover: rgba(0,0,0,0.02);
+          --stats-bg: linear-gradient(135deg, #ffffff 0%, #f1f3f5 100%);
+          --header-bg: #f8f9fa;
+          --input-bg: #ffffff;
+        }
+        body.dark-mode {
+          --page-bg: #0d1117;
+          --card-bg: #161b22;
+          --text-main: #e6edf3;
+          --text-muted: #8b949e;
+          --border-color: rgba(255,255,255,0.1);
+          --table-hover: rgba(255,255,255,0.03);
+          --stats-bg: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+          --header-bg: #1a1a1a;
+          --input-bg: #0d1117;
+        }
+
+        .theme-card {
+          background: var(--card-bg) !important;
+          color: var(--text-main) !important;
+          border: 1px solid var(--border-color) !important;
+        }
+        .theme-table {
+          color: var(--text-main) !important;
+          background: transparent !important;
+        }
+        .theme-table thead th {
+          background: var(--header-bg) !important;
+          color: var(--text-muted) !important;
+          border-bottom: 1px solid var(--border-color) !important;
+        }
+        .theme-table tbody tr:hover {
+          background: var(--table-hover) !important;
+        }
+        .theme-table td {
+          border-bottom: 1px solid var(--border-color) !important;
+          color: var(--text-main) !important;
+        }
+        .stats-bar-theme {
+          background: var(--stats-bg) !important;
+          border-bottom: 1px solid var(--border-color) !important;
+        }
+        .theme-input {
+          background: var(--input-bg) !important;
+          color: var(--text-main) !important;
+          border: 1px solid var(--border-color) !important;
+        }
+        .text-theme-main { color: var(--text-main) !important; }
+        .text-theme-muted { color: var(--text-muted) !important; }
+      `}</style>
+      <Container fluid className="py-4 px-lg-4" style={{ minHeight: '100vh', background: 'var(--page-bg)' }}>
         {/* Header Section */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
@@ -617,7 +674,7 @@ const IntradayPage = () => {
         <Row className="g-4">
           {/* Main Dashboard Area */}
           <Col lg={12} className={fullScreen ? 'full-screen-mode' : ''}>
-            <Card style={glassStyle} className={`h-100 shadow-lg border-0 overflow-hidden ${fullScreen ? 'rounded-0' : ''}`}>
+            <Card style={glassStyle} className={`h-100 shadow-lg border-0 overflow-hidden theme-card ${fullScreen ? 'rounded-0' : ''}`}>
               {/* PREMIUM MASTER HEADER */}
               <div style={cardHeaderStyle} className="d-flex justify-content-between align-items-center flex-wrap py-2 px-3 border-bottom shadow-sm">
                 <div className="d-flex align-items-center flex-wrap gap-2">
@@ -634,7 +691,7 @@ const IntradayPage = () => {
                         <i className="bi bi-chevron-down ms-2 text-muted" style={{ fontSize: '0.8rem' }}></i>
                       </Dropdown.Toggle>
 
-                      <Dropdown.Menu className="shadow-lg border-0 py-2" style={{ maxHeight: '400px', overflowY: 'auto', background: 'var(--glass-bg)', backdropFilter: 'blur(15px)', zIndex: 10005, border: '1px solid var(--glass-border) !important' }}>
+                      <Dropdown.Menu className="shadow-lg border-0 py-2 theme-card" style={{ maxHeight: '400px', overflowY: 'auto', backdropFilter: 'blur(15px)', zIndex: 10005 }}>
                         <div className="px-3 py-1 text-muted small fw-bold text-uppercase border-bottom mb-2 opacity-50" style={{ fontSize: '0.65rem' }}>Select Instrument</div>
                         {STOCKS_LIST.map(stock => (
                           <Dropdown.Item 
@@ -645,7 +702,7 @@ const IntradayPage = () => {
                           >
                             <div className="d-flex justify-content-between align-items-center">
                               <span>{stock.symbol}</span>
-                              <Badge bg="dark" className="ms-3 opacity-50 fw-normal" style={{ fontSize: '0.6rem' }}>{stock.exchange}</Badge>
+                              <Badge bg={themeMode === 'dark' ? 'dark' : 'light'} className={`ms-3 opacity-50 fw-normal ${themeMode === 'light' ? 'border border-secondary border-opacity-25' : ''}`} style={{ fontSize: '0.6rem' }}>{stock.exchange}</Badge>
                             </div>
                           </Dropdown.Item>
                         ))}
@@ -1012,8 +1069,8 @@ const IntradayPage = () => {
               </div>
 
               <Card.Body className="p-0 overflow-auto" style={{ height: '600px' }}>
-                <Table responsive hover variant={themeMode === 'dark' ? 'dark' : ''} className="mb-0 bg-transparent align-middle dense-table">
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: themeMode === 'dark' ? '#1a1a1a' : '#f8f9fa' }}>
+                <Table responsive hover className="mb-0 bg-transparent align-middle dense-table theme-table">
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                     <tr className="text-muted small uppercase">
                       <th style={{ width: '40px' }}>
                         <Form.Check 
@@ -1110,13 +1167,13 @@ const IntradayPage = () => {
           <Row className="mt-4 g-3">
             {/* Top 5 Performers Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100">
+              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
                 <div style={cardHeaderStyle} className="py-2 d-flex justify-content-between align-items-center">
                    <span>Top 5 Performers</span>
                    <Badge bg="primary" className="opacity-75">Analytics</Badge>
                 </div>
                 <Card.Body className="p-0">
-                  <Table responsive hover variant="dark" className="mb-0 bg-transparent">
+                  <Table responsive hover className="mb-0 bg-transparent theme-table">
                     <thead>
                       <tr className="text-muted small uppercase">
                         <th>Stock</th>
@@ -1155,10 +1212,10 @@ const IntradayPage = () => {
 
             {/* Active Positions Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100">
+              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
                 <div style={cardHeaderStyle} className="py-2">Active Positions</div>
                 <Card.Body className="p-0">
-                  <Table responsive hover variant="dark" className="mb-0 bg-transparent">
+                  <Table responsive hover className="mb-0 bg-transparent theme-table">
                     <thead>
                       <tr className="text-muted small uppercase">
                         <th>Symbol</th>
@@ -1208,7 +1265,7 @@ const IntradayPage = () => {
 
             {/* Trade History Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100">
+              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
                 <div style={cardHeaderStyle} className="py-2 d-flex justify-content-between align-items-center">
                   <span>Trade History</span>
                   <Button variant="outline-info" size="sm" className="px-2 py-0 fw-bold" style={{ fontSize: '0.65rem' }} onClick={handleDownloadReport}>
@@ -1216,7 +1273,7 @@ const IntradayPage = () => {
                   </Button>
                 </div>
                 <Card.Body className="p-0">
-                  <Table responsive hover variant="dark" className="mb-0 bg-transparent">
+                  <Table responsive hover className="mb-0 bg-transparent theme-table">
                     <thead>
                       <tr className="text-muted small uppercase">
                         <th>Time</th>
