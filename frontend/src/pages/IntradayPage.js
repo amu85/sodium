@@ -1674,10 +1674,10 @@ const IntradayPage = () => {
               <div className="p-3 rounded theme-well mb-4">
                 <h6 className="fw-bold text-success mb-2">Why is this a Top Performer?</h6>
                 <p className="small text-theme-main mb-0" style={{ lineHeight: '1.6' }}>
-                  {selectedPerformer.symbol} has shown strong momentum with a sustained <b>{selectedPerformer.trend}</b> trend. 
-                  The algo has executed <b>{selectedPerformer.tradesCount} trades</b> for this stock, successfully capturing price swings.
-                  {selectedPerformer.realized > 0 ? ` Realized profit of ₹${selectedPerformer.realized.toFixed(2)} has already been booked.` : ''}
-                  {selectedPerformer.unrealized > 0 ? ` Currently holding an unrealized gain of ₹${selectedPerformer.unrealized.toFixed(2)}.` : ''}
+                  {selectedPerformer.symbol} has performed exceptionally well today. 
+                  The algo has executed <b>{selectedPerformer.tradesCount} trades</b> for this stock, successfully capturing price swings. 
+                  A realized profit of <b>₹{selectedPerformer.realized.toFixed(2)}</b> has already been booked and secured in your total equity.
+                  {selectedPerformer.unrealized !== 0 ? ` You also have a current live gain of ₹${selectedPerformer.unrealized.toFixed(2)} running.` : ''}
                 </p>
               </div>
 
