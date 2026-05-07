@@ -1522,6 +1522,13 @@ const IntradayPage = () => {
             background: var(--header-bg) !important;
             border-top: 1px solid var(--border-color) !important;
           }
+
+          .theme-well {
+            background: var(--hover-bg) !important;
+            border: 1px solid var(--border-color) !important;
+            color: var(--text-main) !important;
+            border-radius: 8px !important;
+          }
         `}</style>
       {/* Chart Modal */}
       <Modal 
@@ -1600,34 +1607,34 @@ const IntradayPage = () => {
                 <label className="text-info fw-bold mb-2 d-flex align-items-center" style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>
                   <i className="bi bi-info-circle me-2"></i> EXECUTION REASON
                 </label>
-                <div className="p-3 rounded border border-info border-opacity-25" style={{ background: 'rgba(0, 188, 212, 0.05)', fontSize: '1rem', lineHeight: '1.6' }}>
+                <div className="p-3 rounded theme-well" style={{ fontSize: '1rem', lineHeight: '1.6' }}>
                   {selectedTrade.reason || "Manual order execution from dashboard controls."}
                 </div>
               </div>
 
               <Row className="g-3">
                 <Col xs={6}>
-                  <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
+                  <div className="p-2 rounded theme-well">
                     <div className="small text-muted mb-1">Execution Price</div>
-                    <div className="fw-bold text-white">₹{(selectedTrade.price || selectedTrade.avgPrice || selectedTrade.exitPrice || 0).toFixed(2)}</div>
+                    <div className="fw-bold text-theme-main">₹{(selectedTrade.price || selectedTrade.avgPrice || selectedTrade.exitPrice || 0).toFixed(2)}</div>
                   </div>
                 </Col>
                 <Col xs={6}>
-                  <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
+                  <div className="p-2 rounded theme-well">
                     <div className="small text-muted mb-1">Quantity</div>
-                    <div className="fw-bold text-white">{Math.abs(selectedTrade.quantity)} Shares</div>
+                    <div className="fw-bold text-theme-main">{Math.abs(selectedTrade.quantity)} Shares</div>
                   </div>
                 </Col>
                 {selectedTrade.type === 'SELL' && (
                   <>
                     <Col xs={6}>
-                      <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
+                      <div className="p-2 rounded theme-well">
                         <div className="small text-muted mb-1">Entry Price</div>
-                        <div className="fw-bold text-white">₹{selectedTrade.entryPrice?.toFixed(2)}</div>
+                        <div className="fw-bold text-theme-main">₹{selectedTrade.entryPrice?.toFixed(2)}</div>
                       </div>
                     </Col>
                     <Col xs={6}>
-                      <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
+                      <div className="p-2 rounded theme-well">
                         <div className="small text-muted mb-1">Total P&L</div>
                         <div className={`fw-bold ${selectedTrade.profit >= 0 ? 'text-success' : 'text-danger'}`}>
                           ₹{selectedTrade.profit?.toFixed(2)}
@@ -1664,9 +1671,9 @@ const IntradayPage = () => {
                 <div className="text-muted small uppercase">Total Accumulated Profit</div>
               </div>
 
-              <div className="p-3 rounded border border-success border-opacity-25 mb-4" style={{ background: 'rgba(40, 167, 69, 0.05)' }}>
+              <div className="p-3 rounded theme-well mb-4">
                 <h6 className="fw-bold text-success mb-2">Why is this a Top Performer?</h6>
-                <p className="small mb-0" style={{ lineHeight: '1.6' }}>
+                <p className="small text-theme-main mb-0" style={{ lineHeight: '1.6' }}>
                   {selectedPerformer.symbol} has shown strong momentum with a sustained <b>{selectedPerformer.trend}</b> trend. 
                   The algo has executed <b>{selectedPerformer.tradesCount} trades</b> for this stock, successfully capturing price swings.
                   {selectedPerformer.realized > 0 ? ` Realized profit of ₹${selectedPerformer.realized.toFixed(2)} has already been booked.` : ''}
@@ -1694,19 +1701,19 @@ const IntradayPage = () => {
         <Modal.Body>
           <Row className="g-3 mb-4">
             <Col md={4}>
-              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+              <div className="p-3 rounded theme-well h-100 text-center">
                 <div className="text-muted small uppercase fw-bold mb-1">Total Stocks Traded</div>
-                <h3 className="mb-0 text-white fw-bold">{performanceData.totalTraded}</h3>
+                <h3 className="mb-0 text-theme-main fw-bold">{performanceData.totalTraded}</h3>
               </div>
             </Col>
             <Col md={4}>
-              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+              <div className="p-3 rounded theme-well h-100 text-center">
                 <div className="text-muted small uppercase fw-bold mb-1">Active Positions</div>
                 <h3 className="mb-0 text-warning fw-bold">{paperData.positions.length}</h3>
               </div>
             </Col>
             <Col md={4}>
-              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+              <div className="p-3 rounded theme-well h-100 text-center">
                 <div className="text-muted small uppercase fw-bold mb-1">Net P&L (Live)</div>
                 <h3 className={`mb-0 fw-bold ${calculateTotalPnL() >= 0 ? 'text-success' : 'text-danger'}`}>
                   ₹{calculateTotalPnL().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1785,30 +1792,30 @@ const IntradayPage = () => {
         <Modal.Body className="pt-0 px-4 pb-4">
           <div className="logic-diagram mb-4">
             <div className="d-flex flex-column align-items-center gap-3">
-              <div className="logic-step p-3 rounded border border-info w-75 text-center bg-dark">
+              <div className="logic-step p-3 rounded border border-info w-75 text-center theme-well">
                 <h6 className="text-info fw-bold mb-1">STEP 1: TREND DETECTION</h6>
-                <small>Bot uses <b>Supertrend (10, 1.5)</b> on 1-min candles to identify primary direction.</small>
+                <small className="text-theme-muted">Bot uses <b>Supertrend (10, 1.5)</b> on 1-min candles to identify primary direction.</small>
               </div>
               <i className="bi bi-arrow-down fs-4 text-muted"></i>
-              <div className="logic-step p-3 rounded border border-warning w-75 text-center bg-dark">
+              <div className="logic-step p-3 rounded border border-warning w-75 text-center theme-well">
                 <h6 className="text-warning fw-bold mb-1">STEP 2: WHIPSAW PROTECTION</h6>
-                <small><b>Adaptive Mode</b> monitors trend flip frequency. If noise is detected, it increases the multiplier up to <b>5.0</b> automatically.</small>
+                <small className="text-theme-muted"><b>Adaptive Mode</b> monitors trend flip frequency. If noise is detected, it increases the multiplier up to <b>5.0</b> automatically.</small>
               </div>
               <i className="bi bi-arrow-down fs-4 text-muted"></i>
-              <div className="logic-step p-3 rounded border border-success w-75 text-center bg-dark">
+              <div className="logic-step p-3 rounded border border-success w-75 text-center theme-well">
                 <h6 className="text-success fw-bold mb-1">STEP 3: RSI SIGNAL FILTER</h6>
-                <small>Bot checks <b>RSI (14)</b>. It skips BUY if RSI {'>'} 70 (Overbought) and skips SELL if RSI {'<'} 30 (Oversold).</small>
+                <small className="text-theme-muted">Bot checks <b>RSI (14)</b>. It skips BUY if RSI {'>'} 70 (Overbought) and skips SELL if RSI {'<'} 30 (Oversold).</small>
               </div>
               <i className="bi bi-arrow-down fs-4 text-muted"></i>
-              <div className="logic-step p-3 rounded border border-primary w-75 text-center bg-dark shadow-lg">
+              <div className="logic-step p-3 rounded border border-primary w-75 text-center theme-well shadow-lg">
                 <h6 className="text-primary fw-bold mb-1">STEP 4: EXECUTION</h6>
-                <small>Orders are placed only when all filters pass. Margin is calculated at <b>5x leverage</b> for paper trading.</small>
+                <small className="text-theme-muted">Orders are placed only when all filters pass. Margin is calculated at <b>5x leverage</b> for paper trading.</small>
               </div>
             </div>
           </div>
 
-          <div className="p-3 rounded bg-secondary bg-opacity-10 border border-secondary mt-4">
-             <h6 className="fw-bold text-white"><i className="bi bi-info-circle me-2"></i> How the Bot "Thinks"</h6>
+          <div className="p-3 rounded theme-well mt-4">
+             <h6 className="fw-bold text-theme-main"><i className="bi bi-info-circle me-2"></i> How the Bot "Thinks"</h6>
              <div className="row g-3">
                <div className="col-md-6">
                  <div className="small fw-bold text-info mb-1 uppercase">Automatic Logic</div>
@@ -1868,30 +1875,30 @@ const IntradayPage = () => {
         <Modal.Body className="pt-0 px-4 pb-4">
           <div className="row g-4">
             <div className="col-md-6">
-              <div className="p-3 rounded border border-info border-opacity-50 h-100 bg-dark bg-opacity-25">
+              <div className="p-3 rounded border border-info border-opacity-50 h-100 theme-well">
                 <h6 className="text-info fw-bold mb-3 d-flex align-items-center">
                   <Badge bg="info" className="me-2">AM</Badge> PRE-MARKET (9:00 - 9:15)
                 </h6>
-                <ul className="small text-muted ps-3">
-                  <li className="mb-2 text-white"><b>Clear Session:</b> Click the <span className="text-danger">RESET</span> button to clear previous day's trades.</li>
-                  <li className="mb-2 text-white"><b>Verify Connection:</b> Ensure "ENGINE RUNNING" is green and Ticker is active.</li>
-                  <li className="mb-2 text-white"><b>Setup Stocks:</b> Add your top stocks to the "Auto-Trade" list.</li>
-                  <li className="mb-2 text-white"><b>Margin Check:</b> Ensure your paper balance is sufficient for the day.</li>
-                  <li className="text-white"><b>Logic Review:</b> Verify RSI and Adaptive settings are correct.</li>
+                <ul className="small text-theme-muted ps-3">
+                  <li className="mb-2"><b>Clear Session:</b> Click the <span className="text-danger">RESET</span> button to clear previous day's trades.</li>
+                  <li className="mb-2"><b>Verify Connection:</b> Ensure "ENGINE RUNNING" is green and Ticker is active.</li>
+                  <li className="mb-2"><b>Setup Stocks:</b> Add your top stocks to the "Auto-Trade" list.</li>
+                  <li className="mb-2"><b>Margin Check:</b> Ensure your paper balance is sufficient for the day.</li>
+                  <li><b>Logic Review:</b> Verify RSI and Adaptive settings are correct.</li>
                 </ul>
               </div>
             </div>
             <div className="col-md-6">
-              <div className="p-3 rounded border border-success border-opacity-50 h-100 bg-dark bg-opacity-25">
+              <div className="p-3 rounded border border-success border-opacity-50 h-100 theme-well">
                 <h6 className="text-success fw-bold mb-3 d-flex align-items-center">
                   <Badge bg="success" className="me-2">PM</Badge> POST-MARKET (3:30 - 4:00)
                 </h6>
-                <ul className="small text-muted ps-3">
-                  <li className="mb-2 text-white"><b>Stop Engine:</b> Turn off "Auto-Trade" to prevent after-market noise.</li>
-                  <li className="mb-2 text-white"><b>Close Positions:</b> Manually close any overnight positions if needed.</li>
-                  <li className="mb-2 text-white"><b>Export Report:</b> Use the <span className="text-primary">PERFORMANCE</span> modal to download your Daily Excel.</li>
-                  <li className="mb-2 text-white"><b>Review Logic:</b> Check "Bottom Performers" to see if any stocks need blacklisting.</li>
-                  <li className="text-white"><b>System Backup:</b> Changes are auto-saved, but verify GitHub is updated.</li>
+                <ul className="small text-theme-muted ps-3">
+                  <li className="mb-2"><b>Stop Engine:</b> Turn off "Auto-Trade" to prevent after-market noise.</li>
+                  <li className="mb-2"><b>Close Positions:</b> Manually close any overnight positions if needed.</li>
+                  <li className="mb-2"><b>Export Report:</b> Use the <span className="text-primary">PERFORMANCE</span> modal to download your Daily Excel.</li>
+                  <li className="mb-2"><b>Review Logic:</b> Check "Bottom Performers" to see if any stocks need blacklisting.</li>
+                  <li><b>System Backup:</b> Changes are auto-saved, but verify GitHub is updated.</li>
                 </ul>
               </div>
             </div>
