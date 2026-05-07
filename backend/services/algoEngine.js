@@ -12,10 +12,60 @@ function readAlgoConfig() {
     return JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, 'utf8'));
 }
 
+function getMarketStatus() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const day = now.getDay(); 
+
+    if (day === 0 || day === 6) return { canTrade: false, shouldSquareOff: false, reason: "Market Closed (Weekend)" };
+
+    const currentTimeInMinutes = hours * 60 + minutes;
+    const startMinutes = 9 * 60 + 20; 
+    const stopMinutes = 15 * 60 + 19; 
+    const marketCloseMinutes = 15 * 60 + 30; 
+
+    if (currentTimeInMinutes < startMinutes) {
+        return { canTrade: false, shouldSquareOff: false, reason: "Waiting for Strategy Start (09:20)" };
+    }
+    
+    if (currentTimeInMinutes > stopMinutes) {
+        if (currentTimeInMinutes <= marketCloseMinutes) {
+            return { canTrade: false, shouldSquareOff: true, reason: "Strategy Stop Reached (15:19). Squaring off..." };
+        }
+        return { canTrade: false, shouldSquareOff: false, reason: "Market Closed (Post 15:30)" };
+    }
+
+    return { canTrade: true, shouldSquareOff: false, reason: "Active" };
+}
+
 async function runEngineCycle() {
     try {
         const config = readAlgoConfig();
         if (!config.autoTradingEnabled) return;
+
+        const marketStatus = getMarketStatus();
+        
+        if (marketStatus.shouldSquareOff) {
+            const paperDataFile = path.join(__dirname, '../data/paperTrades.json');
+            const paperData = JSON.parse(fs.readFileSync(paperDataFile, 'utf8'));
+            
+            if (paperData.positions.length > 0) {
+                storeLog(`[ENGINE] ${marketStatus.reason}`);
+                const status = intradayService.getStatus();
+                
+                for (const pos of [...paperData.positions]) {
+                    const inst = status.instruments?.find(i => i.symbol === pos.symbol);
+                    const exitPrice = inst ? inst.ltp : pos.avgPrice;
+                    const action = pos.quantity > 0 ? 'SELL' : 'BUY';
+                    storeLog(`[ENGINE] Automatic Square-off for ${pos.symbol} at ${exitPrice}`);
+                    executePaperOrder(pos.symbol, pos.exchange, action, Math.abs(pos.quantity), exitPrice, "Auto-Trade: Market Close Square-off");
+                }
+            }
+            return;
+        }
+
+        if (!marketStatus.canTrade) return;
 
         const period = config.stPeriod || 10;
         const multiplier = config.stMultiplier || 1.5;
