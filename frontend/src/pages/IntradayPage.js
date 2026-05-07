@@ -29,6 +29,7 @@ const IntradayPage = () => {
   const [showPerformerModal, setShowPerformerModal] = useState(false);
   const [showPerformanceModal, setShowPerformanceModal] = useState(false);
   const [showLogicModal, setShowLogicModal] = useState(false);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState(null);
   const [selectedPerformer, setSelectedPerformer] = useState(null);
   const [defaultQuantity, setDefaultQuantity] = useState(10);
@@ -577,11 +578,19 @@ const IntradayPage = () => {
                 </a>
                 <Button 
                   variant="link" 
-                  className="ms-2 p-0 text-info text-decoration-none"
+                  className="ms-1 p-0 text-info text-decoration-none"
                   onClick={() => setShowLogicModal(true)}
                   title="View Bot Logic"
                 >
                   <i className="bi bi-cpu-fill fs-5"></i>
+                </Button>
+                <Button 
+                  variant="link" 
+                  className="ms-2 p-0 text-warning text-decoration-none"
+                  onClick={() => setShowChecklistModal(true)}
+                  title="Market Checklist"
+                >
+                  <i className="bi bi-journal-check fs-5"></i>
                 </Button>
               </div>
               <small className="text-muted">Last sync: {lastUpdated}</small>
@@ -1478,13 +1487,13 @@ const IntradayPage = () => {
       </Modal>
       {/* Performer Logic Modal */}
       <Modal show={showPerformerModal} onHide={() => setShowPerformerModal(false)} centered size="md">
-        <Modal.Header closeButton style={{ background: '#1a1a1a', borderBottom: '1px solid #333', color: 'white' }}>
+        <Modal.Header closeButton className="border-bottom-0">
           <Modal.Title className="fw-bold text-success">
             <i className="bi bi-graph-up-arrow me-2"></i>
             Performance Insight: {selectedPerformer?.symbol}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ background: '#121212', color: '#e0e0e0', padding: '25px' }}>
+        <Modal.Body className="pt-0 px-4 pb-4">
           {selectedPerformer && (
             <div>
               <div className="mb-4 text-center">
@@ -1509,17 +1518,17 @@ const IntradayPage = () => {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer style={{ background: '#1a1a1a', borderTop: '1px solid #333' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowPerformerModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
 
       {/* Performance Summary Modal */}
-      <Modal show={showPerformanceModal} onHide={() => setShowPerformanceModal(false)} size="lg" centered className="dark-modal">
-        <Modal.Header closeButton style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+      <Modal show={showPerformanceModal} onHide={() => setShowPerformanceModal(false)} size="lg" centered>
+        <Modal.Header closeButton>
           <Modal.Title className="text-info"><i className="bi bi-bar-chart-line-fill me-2"></i> Today's Activity Report</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ background: '#1a1a1a', color: '#fff' }}>
+        <Modal.Body>
           <Row className="g-3 mb-4">
             <Col md={4}>
               <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
@@ -1606,11 +1615,11 @@ const IntradayPage = () => {
       </Modal>
 
       {/* Bot Logic Explanation Modal */}
-      <Modal show={showLogicModal} onHide={() => setShowLogicModal(false)} size="lg" centered className="dark-modal">
-        <Modal.Header closeButton style={{ background: '#111', borderBottom: '1px solid #333' }}>
+      <Modal show={showLogicModal} onHide={() => setShowLogicModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-bottom-0">
           <Modal.Title className="text-info"><i className="bi bi-cpu-fill me-2"></i> Algohydrogen Bot Intelligence</Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ background: '#000', color: '#eee', padding: '30px' }}>
+        <Modal.Body className="pt-0 px-4 pb-4">
           <div className="logic-diagram mb-4">
             <div className="d-flex flex-column align-items-center gap-3">
               <div className="logic-step p-3 rounded border border-info w-75 text-center bg-dark">
@@ -1683,8 +1692,54 @@ const IntradayPage = () => {
              </div>
           </div>
         </Modal.Body>
-        <Modal.Footer style={{ background: '#111', borderTop: '1px solid #333' }}>
+        <Modal.Footer className="border-top-0">
           <Button variant="outline-info" size="sm" onClick={() => setShowLogicModal(false)}>Got it, I'm ready!</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Market Checklist Modal */}
+      <Modal show={showChecklistModal} onHide={() => setShowChecklistModal(false)} size="lg" centered>
+        <Modal.Header closeButton className="border-bottom-0">
+          <Modal.Title className="text-warning"><i className="bi bi-journal-check me-2"></i> Algohydrogen Market Routines</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="pt-0 px-4 pb-4">
+          <div className="row g-4">
+            <div className="col-md-6">
+              <div className="p-3 rounded border border-info border-opacity-50 h-100 bg-dark bg-opacity-25">
+                <h6 className="text-info fw-bold mb-3 d-flex align-items-center">
+                  <Badge bg="info" className="me-2">AM</Badge> PRE-MARKET (9:00 - 9:15)
+                </h6>
+                <ul className="small text-muted ps-3">
+                  <li className="mb-2 text-white"><b>Clear Session:</b> Click the <span className="text-danger">RESET</span> button to clear previous day's trades.</li>
+                  <li className="mb-2 text-white"><b>Verify Connection:</b> Ensure "ENGINE RUNNING" is green and Ticker is active.</li>
+                  <li className="mb-2 text-white"><b>Setup Stocks:</b> Add your top stocks to the "Auto-Trade" list.</li>
+                  <li className="mb-2 text-white"><b>Margin Check:</b> Ensure your paper balance is sufficient for the day.</li>
+                  <li className="text-white"><b>Logic Review:</b> Verify RSI and Adaptive settings are correct.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="col-md-6">
+              <div className="p-3 rounded border border-success border-opacity-50 h-100 bg-dark bg-opacity-25">
+                <h6 className="text-success fw-bold mb-3 d-flex align-items-center">
+                  <Badge bg="success" className="me-2">PM</Badge> POST-MARKET (3:30 - 4:00)
+                </h6>
+                <ul className="small text-muted ps-3">
+                  <li className="mb-2 text-white"><b>Stop Engine:</b> Turn off "Auto-Trade" to prevent after-market noise.</li>
+                  <li className="mb-2 text-white"><b>Close Positions:</b> Manually close any overnight positions if needed.</li>
+                  <li className="mb-2 text-white"><b>Export Report:</b> Use the <span className="text-primary">PERFORMANCE</span> modal to download your Daily Excel.</li>
+                  <li className="mb-2 text-white"><b>Review Logic:</b> Check "Bottom Performers" to see if any stocks need blacklisting.</li>
+                  <li className="text-white"><b>System Backup:</b> Changes are auto-saved, but verify GitHub is updated.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 rounded bg-secondary bg-opacity-10 border border-secondary text-center">
+            <p className="small text-muted mb-0 italic">"Consistency is the key to algorithmic success. Follow the routine, trust the logic."</p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-top-0">
+          <Button variant="outline-warning" size="sm" onClick={() => setShowChecklistModal(false)}>Understood!</Button>
         </Modal.Footer>
       </Modal>
     </Container>
