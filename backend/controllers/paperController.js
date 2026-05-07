@@ -18,7 +18,18 @@ function writePaperData(data) {
 exports.getPaperStatus = (req, res) => {
     try {
         const data = readPaperData();
-        res.json(data);
+        
+        // Calculate used margin (assuming 5x leverage for paper trading)
+        let usedMargin = 0;
+        data.positions.forEach(pos => {
+            usedMargin += (Math.abs(pos.quantity) * pos.avgPrice) / 5;
+        });
+
+        res.json({
+            ...data,
+            usedMargin,
+            availableMargin: data.balance - usedMargin
+        });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

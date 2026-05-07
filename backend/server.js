@@ -20,6 +20,7 @@ const runSendAlertMail = require('./cron/sendAlertMailCron');
 const storeLog = require('./logger');
 const { scheduleExitTimeCheck, readConfig, startAlgoInternal } = require('./controllers/algoController');
 const { autoStartEnabledStrategies } = require('./utils/autoStartStrategies');
+const algoEngine = require('./services/algoEngine');
 
 const app = express();
 
@@ -61,7 +62,7 @@ app.use('/api/intraday', authenticateJWT, intradayRoutes);
 app.use('/api/paper', authenticateJWT, paperRoutes);
 
 // Auto Algo route
-app.use('/api/algo', algoRoutes);
+app.use('/api/algo', authenticateJWT, algoRoutes);
 
 // Futures Strategy routes
 app.use('/api/futures-strategy', futuresStrategyRoutes);
@@ -120,7 +121,7 @@ function authenticateJWT(req, res, next) {
 (async () => {
   storeLog("Server started. Checking for strategies to auto-start...");
   await autoStartEnabledStrategies();
-
+  algoEngine.startEngine();
 })();
 
 scheduleExitTimeCheck();

@@ -781,8 +781,10 @@ const updateAlgoStocks = (req, res) => {
     algoConfig.autoTradeStocks = symbols;
     fs.writeFileSync(ALGO_CONFIG_FILE, JSON.stringify(algoConfig, null, 2));
 
+    storeLog(`[ALGO] Auto-trade stocks updated: ${symbols.join(", ")}`);
     res.json({ success: true, message: "Auto-trade stocks updated" });
   } catch (err) {
+    storeLog(`[ALGO] Failed to update auto-trade stocks: ${err.message}`);
     res.status(500).json({ success: false, message: err.message });
   }
 };

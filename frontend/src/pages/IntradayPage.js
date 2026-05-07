@@ -203,9 +203,13 @@ const IntradayPage = () => {
 
   useEffect(() => {
     fetchStatus();
-    const statusInterval = setInterval(fetchStatus, 3000);
     fetchPaperStatus();
-    return () => clearInterval(statusInterval);
+    const statusInterval = setInterval(fetchStatus, 3000);
+    const paperInterval = setInterval(fetchPaperStatus, 3000);
+    return () => {
+      clearInterval(statusInterval);
+      clearInterval(paperInterval);
+    };
   }, [fetchStatus, fetchPaperStatus]);
 
   useEffect(() => {
@@ -848,7 +852,7 @@ const IntradayPage = () => {
                     <div className="d-flex align-items-center">
                       <i className="bi bi-wallet2 me-2 fs-5" style={{ color: '#ffc107' }}></i>
                       <span className="fw-bold" style={{ color: '#ffc107', fontSize: '1.25rem', fontFamily: 'monospace', textShadow: '0 0 15px rgba(255, 193, 7, 0.4)' }}>
-                        ₹{paperData.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{(paperData.availableMargin || paperData.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>
@@ -1393,7 +1397,7 @@ const IntradayPage = () => {
                 </div>
                 <div className="text-end">
                   <div className="small text-muted uppercase fw-bold mb-1" style={{ letterSpacing: '1px' }}>Time Executed</div>
-                  <div className="fw-bold fs-5">{new Date(selectedTrade.timestamp).toLocaleTimeString()}</div>
+                  <div className="fw-bold fs-5">{new Date(selectedTrade.timestamp || selectedTrade.entryTime).toLocaleTimeString()}</div>
                 </div>
               </div>
 
@@ -1415,13 +1419,13 @@ const IntradayPage = () => {
                 <Col xs={6}>
                   <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
                     <div className="small text-muted mb-1">Execution Price</div>
-                    <div className="fw-bold text-white">₹{(selectedTrade.price || selectedTrade.exitPrice || 0).toFixed(2)}</div>
+                    <div className="fw-bold text-white">₹{(selectedTrade.price || selectedTrade.avgPrice || selectedTrade.exitPrice || 0).toFixed(2)}</div>
                   </div>
                 </Col>
                 <Col xs={6}>
                   <div className="p-2 rounded border border-secondary border-opacity-25 bg-dark bg-opacity-25">
                     <div className="small text-muted mb-1">Quantity</div>
-                    <div className="fw-bold text-white">{selectedTrade.quantity} Shares</div>
+                    <div className="fw-bold text-white">{Math.abs(selectedTrade.quantity)} Shares</div>
                   </div>
                 </Col>
                 {selectedTrade.type === 'SELL' && (
