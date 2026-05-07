@@ -33,6 +33,7 @@ const IntradayPage = () => {
   const [selectedTrade, setSelectedTrade] = useState(null);
   const [selectedPerformer, setSelectedPerformer] = useState(null);
   const [defaultQuantity, setDefaultQuantity] = useState(10);
+  const [themeMode, setThemeMode] = useState(localStorage.getItem('mode') || 'light');
 
   const [selectedTokens, setSelectedTokens] = useState([]);
   const [showChartModal, setShowChartModal] = useState(false);
@@ -248,7 +249,18 @@ const IntradayPage = () => {
        if (event.keyCode === 27) setFullScreen(false);
     };
     window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+
+    // Watch for theme changes
+    const observer = new MutationObserver(() => {
+      const currentMode = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+      setThemeMode(currentMode);
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+      observer.disconnect();
+    };
   }, []);
 
   const handleStart = async (customTokens = null, customMap = null) => {
@@ -500,21 +512,22 @@ const IntradayPage = () => {
   };
 
   const glassStyle = {
-    background: 'var(--glass-bg)',
+    background: themeMode === 'dark' ? 'rgba(23, 23, 23, 0.7)' : '#ffffff',
     backdropFilter: 'blur(10px)',
-    border: '1px solid var(--glass-border)',
+    border: `1px solid ${themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
     borderRadius: '15px',
-    color: 'var(--text-main)'
+    color: themeMode === 'dark' ? '#eee' : '#222'
   };
 
   const cardHeaderStyle = {
-    background: 'var(--card-header-bg)',
-    borderBottom: '1px solid var(--glass-border)',
+    background: themeMode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : '#f8f9fa',
+    borderBottom: `1px solid ${themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
     borderTopLeftRadius: '15px',
     borderTopRightRadius: '15px',
     padding: '15px 20px',
     fontWeight: '600',
-    letterSpacing: '0.5px'
+    letterSpacing: '0.5px',
+    color: themeMode === 'dark' ? '#eee' : '#222'
   };
 
   if (loading && !status) {
@@ -537,16 +550,19 @@ const IntradayPage = () => {
               Intraday Analytics
             </h1>
             <p className="text-muted mb-0">
-              Live Supertrend Tracking • <span className="text-primary">{activeStock.symbol}</span> • User: <span className="badge bg-dark border border-secondary">{TARGET_USER_ID}</span>
+              Live Supertrend Tracking • <span className="text-primary">{activeStock.symbol}</span> • User: <span className={`badge ${themeMode === 'dark' ? 'bg-dark border-secondary' : 'bg-light text-dark border-light shadow-sm'}`}>{TARGET_USER_ID}</span>
             </p>
           </div>
           <div className="text-end d-flex align-items-center gap-4">
             {/* Live Scan Summary Widget */}
             {status?.instruments?.length > 0 && (
-              <div className="d-flex align-items-center gap-3 px-3 py-2 rounded-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)' }}>
+              <div className="d-flex align-items-center gap-3 px-3 py-2 rounded-3" style={{ 
+                background: themeMode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)', 
+                border: `1px solid ${themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` 
+              }}>
                 <div className="text-center">
                   <div className="small text-muted fw-bold uppercase mb-1" style={{ fontSize: '0.6rem', letterSpacing: '0.5px' }}>SCANNING</div>
-                  <div className="fw-bold text-white">{status.instruments.length}</div>
+                  <div className={`fw-bold ${themeMode === 'dark' ? 'text-white' : 'text-dark'}`}>{status.instruments.length}</div>
                 </div>
                 <div className="vr opacity-25"></div>
                 <div className="text-center">
@@ -855,19 +871,21 @@ const IntradayPage = () => {
               {/* Pro Paper Trading Status Bar */}
               <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3" 
                 style={{ 
-                  background: 'linear-gradient(135deg, rgba(13, 17, 23, 0.95) 0%, rgba(22, 27, 34, 0.9) 100%)', 
+                  background: themeMode === 'dark' 
+                    ? 'linear-gradient(135deg, rgba(13, 17, 23, 0.95) 0%, rgba(22, 27, 34, 0.9) 100%)' 
+                    : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)', 
                   backdropFilter: 'blur(20px)',
-                  borderBottom: '1px solid rgba(255,255,255,0.1) !important',
-                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)'
+                  borderBottom: `1px solid ${themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'} !important`,
+                  boxShadow: themeMode === 'dark' ? '0 4px 30px rgba(0, 0, 0, 0.5)' : '0 4px 15px rgba(0, 0, 0, 0.05)'
                 }}>
                 
                 <div className="d-flex align-items-center gap-4">
                   {/* Total Equity Block */}
-                  <div className="d-flex flex-column pe-4 border-end" style={{ borderColor: 'rgba(255,255,255,0.15) !important' }}>
-                    <span className="fw-bold mb-1" style={{ color: '#00e5ff', fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Total Equity (Live)</span>
+                  <div className="d-flex flex-column pe-4 border-end" style={{ borderColor: themeMode === 'dark' ? 'rgba(255,255,255,0.15) !important' : 'rgba(0,0,0,0.1) !important' }}>
+                    <span className="fw-bold mb-1" style={{ color: '#00bcd4', fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Total Equity (Live)</span>
                     <div className="d-flex align-items-center">
-                      <i className="bi bi-graph-up-arrow me-2 fs-4" style={{ color: '#00e5ff' }}></i>
-                      <span className="fw-bolder" style={{ color: '#ffffff', fontSize: '1.6rem', fontFamily: 'monospace', textShadow: '0 0 20px rgba(0, 229, 255, 0.6)' }}>
+                      <i className="bi bi-graph-up-arrow me-2 fs-4" style={{ color: '#00bcd4' }}></i>
+                      <span className="fw-bolder" style={{ color: themeMode === 'dark' ? '#ffffff' : '#212529', fontSize: '1.6rem', fontFamily: 'monospace' }}>
                         ₹{(paperData.balance + calculateTotalPnL()).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -885,11 +903,11 @@ const IntradayPage = () => {
                   </div>
 
                   {/* Positions Block */}
-                  <div className="d-flex flex-column border-start ps-4" style={{ borderColor: 'rgba(255,255,255,0.15) !important' }}>
+                  <div className="d-flex flex-column border-start ps-4" style={{ borderColor: themeMode === 'dark' ? 'rgba(255,255,255,0.15) !important' : 'rgba(0,0,0,0.1) !important' }}>
                     <span className="text-warning fw-bold mb-1 opacity-75" style={{ fontSize: '0.65rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Active Positions</span>
                     <div className="d-flex align-items-center">
                       <i className={`bi bi-layers me-2 fs-5 ${paperData.positions.length > 0 ? 'text-warning' : 'text-muted opacity-50'}`}></i>
-                      <span className={`fw-bold ${paperData.positions.length > 0 ? 'text-warning' : 'text-white'}`} style={{ fontSize: '1.25rem', fontFamily: 'monospace' }}>
+                      <span className={`fw-bold ${paperData.positions.length > 0 ? 'text-warning' : (themeMode === 'dark' ? 'text-white' : 'text-dark')}`} style={{ fontSize: '1.25rem', fontFamily: 'monospace' }}>
                         {paperData.positions.length}
                       </span>
                     </div>
@@ -909,7 +927,14 @@ const IntradayPage = () => {
                     </span>
                     <div className="d-flex align-items-center justify-content-end">
                       <i className={`bi ${calculateTotalPnL() >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill'} me-2 fs-4`} style={{ color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131' }}></i>
-                      <span className="fw-bold" style={{ color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131', fontSize: '1.6rem', fontFamily: 'monospace', textShadow: calculateTotalPnL() >= 0 ? '0 0 20px rgba(0, 255, 0, 0.6)' : '0 0 20px rgba(255, 49, 49, 0.6)' }}>
+                      <span className="fw-bold" style={{ 
+                        color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131', 
+                        fontSize: '1.6rem', 
+                        fontFamily: 'monospace', 
+                        textShadow: themeMode === 'dark' 
+                          ? (calculateTotalPnL() >= 0 ? '0 0 20px rgba(0, 255, 0, 0.6)' : '0 0 20px rgba(255, 49, 49, 0.6)')
+                          : 'none'
+                      }}>
                         {calculateTotalPnL() >= 0 ? '+' : ''}₹{calculateTotalPnL().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -918,7 +943,7 @@ const IntradayPage = () => {
                   {/* Actions Group */}
                   <div className="d-flex align-items-center gap-3">
                     {/* Algo Quantity Box */}
-                    <div className="d-flex align-items-center bg-dark bg-opacity-25 rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm" style={{ height: '36px' }}>
+                    <div className={`d-flex align-items-center ${themeMode === 'dark' ? 'bg-dark bg-opacity-25' : 'bg-light'} rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm`} style={{ height: '36px' }}>
                       <span className="text-muted me-2 fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '1px' }}>ALGO QTY:</span>
                       <input 
                         type="number" 
@@ -930,7 +955,7 @@ const IntradayPage = () => {
                     </div>
 
                     {/* Auto-Trade Toggle */}
-                    <div className="d-flex align-items-center bg-dark bg-opacity-25 rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm" style={{ height: '36px' }}>
+                    <div className={`d-flex align-items-center ${themeMode === 'dark' ? 'bg-dark bg-opacity-25' : 'bg-light'} rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm`} style={{ height: '36px' }}>
                       <span className={`me-2 fw-bold ${autoTrade ? 'text-success' : 'text-muted'}`} style={{ fontSize: '0.65rem', letterSpacing: '1px' }}>
                         {autoTrade ? 'FULL AUTO ON' : 'AUTO OFF'}
                       </span>
@@ -944,7 +969,7 @@ const IntradayPage = () => {
                     </div>
 
                     {/* Adaptive Mode Toggle */}
-                    <div className="d-flex align-items-center bg-dark bg-opacity-25 rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm" style={{ height: '36px' }}>
+                    <div className={`d-flex align-items-center ${themeMode === 'dark' ? 'bg-dark bg-opacity-25' : 'bg-light'} rounded-pill px-3 py-1 border border-secondary border-opacity-25 shadow-sm`} style={{ height: '36px' }}>
                       <Form.Check 
                         type="switch"
                         id="adaptive-switch"
@@ -987,8 +1012,8 @@ const IntradayPage = () => {
               </div>
 
               <Card.Body className="p-0 overflow-auto" style={{ height: '600px' }}>
-                <Table responsive hover variant="dark" className="mb-0 bg-transparent align-middle dense-table">
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: '#1a1a1a' }}>
+                <Table responsive hover variant={themeMode === 'dark' ? 'dark' : ''} className="mb-0 bg-transparent align-middle dense-table">
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: themeMode === 'dark' ? '#1a1a1a' : '#f8f9fa' }}>
                     <tr className="text-muted small uppercase">
                       <th style={{ width: '40px' }}>
                         <Form.Check 
