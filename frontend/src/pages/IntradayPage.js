@@ -1840,9 +1840,9 @@ const IntradayPage = () => {
              <h6 className="fw-bold text-info mb-3"><i className="bi bi-lightbulb me-2"></i> User Guidelines (Best Practices)</h6>
              <div className="row g-3">
                <div className="col-md-6">
-                 <div className="p-3 rounded bg-dark border border-info border-opacity-25 h-100">
+                 <div className="p-3 rounded theme-well h-100">
                     <div className="small fw-bold text-info mb-2">🤖 AUTO MODE TIPS</div>
-                    <ul className="x-small text-muted ps-3 mb-0">
+                    <ul className="x-small text-theme-muted ps-3 mb-0">
                       <li className="mb-2">Use <b>Adaptive Mode ON</b> during sideways markets to reduce noise.</li>
                       <li className="mb-2">Check the <b>Performance Modal</b> every 2 hours to monitor net P&L.</li>
                       <li>Set <b>Algo Quantity</b> to a safe level (e.g. 10-50) before going Full Auto.</li>
@@ -1850,9 +1850,9 @@ const IntradayPage = () => {
                  </div>
                </div>
                <div className="col-md-6">
-                 <div className="p-3 rounded bg-dark border border-warning border-opacity-25 h-100">
+                 <div className="p-3 rounded theme-well h-100">
                     <div className="small fw-bold text-warning mb-2">🖐️ MANUAL MODE TIPS</div>
-                    <ul className="x-small text-muted ps-3 mb-0">
+                    <ul className="x-small text-theme-muted ps-3 mb-0">
                       <li className="mb-2">Use <b>Manual Entry</b> for news-based breakouts that indicators might miss.</li>
                       <li className="mb-2">If you see a trend reversal coming, use <b>Close Existing</b> ahead of the bot.</li>
                       <li>Always use <b>Reset</b> at the end of the day to clear the trade history.</li>
