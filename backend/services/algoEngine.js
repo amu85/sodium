@@ -50,14 +50,24 @@ async function runEngineCycle() {
             let reason = `Auto-Trade: Global Mode Trend ${currentTrend}`;
 
             if (!position) {
+                // SMARTER ENTRY: Use RSI to avoid buying at peaks or selling at bottoms
+                const rsi = inst.rsi || 50;
+                if (currentTrend === 'UP' && rsi > 70) {
+                    // storeLog(`[ENGINE] Skipping BUY for ${symbol} as RSI (${rsi}) is overbought`);
+                    continue;
+                }
+                if (currentTrend === 'DOWN' && rsi < 30) {
+                    // storeLog(`[ENGINE] Skipping SELL for ${symbol} as RSI (${rsi}) is oversold`);
+                    continue;
+                }
+
                 // MARGIN CHECK: Only enter if we have enough virtual funds (assuming 5x leverage)
                 const requiredMargin = (inst.ltp * defaultQty) / 5;
                 if (availableMargin < requiredMargin) {
-                    // Not enough funds to open a new position for this stock
                     continue;
                 }
                 action = currentTrend === 'UP' ? 'BUY' : 'SELL';
-                availableMargin -= requiredMargin; // Block the margin for the rest of this cycle
+                availableMargin -= requiredMargin;
             } else {
                 const isLong = position.quantity > 0;
                 if (currentTrend === 'UP' && !isLong) {

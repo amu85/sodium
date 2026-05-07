@@ -27,6 +27,8 @@ const IntradayPage = () => {
   const chartRef = useRef(null);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [showPerformerModal, setShowPerformerModal] = useState(false);
+  const [showPerformanceModal, setShowPerformanceModal] = useState(false);
+  const [showLogicModal, setShowLogicModal] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState(null);
   const [selectedPerformer, setSelectedPerformer] = useState(null);
   const [defaultQuantity, setDefaultQuantity] = useState(10);
@@ -391,48 +393,47 @@ const IntradayPage = () => {
     }
   };
 
-  const calculateTopPerformers = () => {
+  const performanceData = React.useMemo(() => {
     const symbolStats = {};
+    if (!paperData || !paperData.trades) return { winners: [], losers: [], totalTraded: 0 };
 
-    // 1. Calculate Realized P&L from trades
+    // 1. Calculate stats for every symbol that has a trade or position
     paperData.trades.forEach(trade => {
       if (!symbolStats[trade.symbol]) symbolStats[trade.symbol] = { realized: 0, unrealized: 0, total: 0, trend: 'NONE', tradesCount: 0 };
-      if (trade.type === 'SELL' && trade.profit !== undefined) {
+      if (trade.profit !== undefined) {
         symbolStats[trade.symbol].realized += trade.profit;
       }
       symbolStats[trade.symbol].tradesCount++;
     });
 
-    // 2. Calculate Unrealized P&L from active positions
-    paperData.positions.forEach(pos => {
-      if (!symbolStats[pos.symbol]) symbolStats[pos.symbol] = { realized: 0, unrealized: 0, total: 0, trend: 'NONE', tradesCount: 0 };
-      const instrumentStatus = status?.instruments?.find(i => i.symbol === pos.symbol);
-      const currentPrice = instrumentStatus ? instrumentStatus.ltp : (pos.symbol === activeStock.symbol ? liveData.ltp : pos.avgPrice);
-      const unrealized = (currentPrice - pos.avgPrice) * pos.quantity;
-      symbolStats[pos.symbol].unrealized += unrealized;
-      symbolStats[pos.symbol].trend = instrumentStatus?.trend || 'UP';
-    });
+    if (paperData.positions) {
+      paperData.positions.forEach(pos => {
+        if (!symbolStats[pos.symbol]) symbolStats[pos.symbol] = { realized: 0, unrealized: 0, total: 0, trend: 'NONE', tradesCount: 0 };
+        const instrumentStatus = status?.instruments?.find(i => i.symbol === pos.symbol);
+        const currentPrice = instrumentStatus ? instrumentStatus.ltp : (pos.symbol === activeStock?.symbol ? liveData.ltp : pos.avgPrice);
+        const unrealized = (currentPrice - pos.avgPrice) * pos.quantity;
+        symbolStats[pos.symbol].unrealized += unrealized;
+        symbolStats[pos.symbol].trend = instrumentStatus?.trend || 'UP';
+      });
+    }
 
-    // 3. Final Total
-    const performers = Object.keys(symbolStats).map(symbol => ({
+    const allPerformers = Object.keys(symbolStats).map(symbol => ({
       symbol,
       ...symbolStats[symbol],
-      total: symbolStats[symbol].realized + symbolStats[symbol].unrealized
+      total: (symbolStats[symbol].realized || 0) + (symbolStats[symbol].unrealized || 0)
     }));
 
-    return performers.sort((a, b) => b.total - a.total).slice(0, 5);
-  };
+    const winners = allPerformers.filter(p => p.total > 0).sort((a, b) => b.total - a.total);
+    const losers = allPerformers.filter(p => p.total <= 0).sort((a, b) => a.total - b.total);
+
+    return { winners, losers, totalTraded: allPerformers.length };
+  }, [paperData, status, activeStock, liveData]);
 
   const calculateTotalPnL = () => {
-    let pnl = 0;
-    paperData.positions.forEach(pos => {
-      const instrumentStatus = status?.instruments?.find(i => i.symbol === pos.symbol);
-      const currentPrice = instrumentStatus ? instrumentStatus.ltp : (pos.symbol === activeStock.symbol ? liveData.ltp : pos.avgPrice);
-      if (currentPrice) {
-        pnl += (currentPrice - pos.avgPrice) * pos.quantity;
-      }
-    });
-    return pnl;
+    const { winners, losers } = performanceData;
+    const winTotal = winners.reduce((sum, p) => sum + p.total, 0);
+    const lossTotal = losers.reduce((sum, p) => sum + p.total, 0);
+    return winTotal + lossTotal;
   };
 
   const handleDownloadCSV = async () => {
@@ -574,6 +575,14 @@ const IntradayPage = () => {
                 >
                   <i className="bi bi-book me-1"></i> MANUAL
                 </a>
+                <Button 
+                  variant="link" 
+                  className="ms-2 p-0 text-info text-decoration-none"
+                  onClick={() => setShowLogicModal(true)}
+                  title="View Bot Logic"
+                >
+                  <i className="bi bi-cpu-fill fs-5"></i>
+                </Button>
               </div>
               <small className="text-muted">Last sync: {lastUpdated}</small>
             </div>
@@ -739,6 +748,15 @@ const IntradayPage = () => {
                           disabled={starting || !isServiceRunning}
                         >
                           <i className="bi bi-grid-3x3-gap-fill me-1"></i> MONITOR ALL
+                        </Button>
+                        <Button 
+                          variant="outline-info" 
+                          size="sm" 
+                          className="rounded px-3 fw-bold shadow-sm transition-all border-info text-info"
+                          style={{ fontSize: '0.7rem', height: '32px', background: 'rgba(13, 202, 240, 0.1)' }}
+                          onClick={() => setShowPerformanceModal(true)} 
+                        >
+                          <i className="bi bi-bar-chart-line-fill me-1"></i> PERFORMANCE
                         </Button>
                       </div>
                     ) : (
@@ -1073,10 +1091,10 @@ const IntradayPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {calculateTopPerformers().length === 0 ? (
+                      {performanceData.winners.length === 0 ? (
                         <tr><td colSpan="3" className="text-center py-4 text-muted">Awaiting trade data...</td></tr>
                       ) : (
-                        calculateTopPerformers().map((perf, idx) => (
+                        performanceData.winners.slice(0, 5).map((perf, idx) => (
                           <tr key={idx}>
                             <td className="fw-bold">{perf.symbol}</td>
                             <td className={perf.total >= 0 ? 'text-success' : 'text-danger'}>
@@ -1493,6 +1511,180 @@ const IntradayPage = () => {
         </Modal.Body>
         <Modal.Footer style={{ background: '#1a1a1a', borderTop: '1px solid #333' }}>
           <Button variant="secondary" onClick={() => setShowPerformerModal(false)}>Close</Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Performance Summary Modal */}
+      <Modal show={showPerformanceModal} onHide={() => setShowPerformanceModal(false)} size="lg" centered className="dark-modal">
+        <Modal.Header closeButton style={{ background: '#1a1a1a', borderBottom: '1px solid #333' }}>
+          <Modal.Title className="text-info"><i className="bi bi-bar-chart-line-fill me-2"></i> Today's Activity Report</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ background: '#1a1a1a', color: '#fff' }}>
+          <Row className="g-3 mb-4">
+            <Col md={4}>
+              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+                <div className="text-muted small uppercase fw-bold mb-1">Total Stocks Traded</div>
+                <h3 className="mb-0 text-white fw-bold">{performanceData.totalTraded}</h3>
+              </div>
+            </Col>
+            <Col md={4}>
+              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+                <div className="text-muted small uppercase fw-bold mb-1">Active Positions</div>
+                <h3 className="mb-0 text-warning fw-bold">{paperData.positions.length}</h3>
+              </div>
+            </Col>
+            <Col md={4}>
+              <div className="p-3 rounded border border-secondary bg-dark bg-opacity-50 h-100 text-center">
+                <div className="text-muted small uppercase fw-bold mb-1">Net P&L (Live)</div>
+                <h3 className={`mb-0 fw-bold ${calculateTotalPnL() >= 0 ? 'text-success' : 'text-danger'}`}>
+                  ₹{calculateTotalPnL().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </h3>
+              </div>
+            </Col>
+          </Row>
+
+          <h6 className="fw-bold mb-3 border-bottom pb-2 text-success">Profit Makers ({performanceData.winners.length})</h6>
+          <Table responsive variant="dark" hover className="dense-table mb-4">
+            <thead>
+              <tr className="text-muted small">
+                <th>Symbol</th>
+                <th className="text-end">Realized</th>
+                <th className="text-end">Unrealized</th>
+                <th className="text-end">Total P&L</th>
+                <th className="text-center">Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {performanceData.winners.map(p => (
+                <tr key={p.symbol}>
+                  <td className="fw-bold">{p.symbol}</td>
+                  <td className={`text-end ${p.realized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.realized.toFixed(2)}</td>
+                  <td className={`text-end ${p.unrealized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
+                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.total.toFixed(2)}</td>
+                  <td className="text-center">
+                    <Badge bg={p.trend === 'UP' ? 'success' : 'danger'}>{p.trend}</Badge>
+                  </td>
+                </tr>
+              ))}
+              {performanceData.winners.length === 0 && <tr><td colSpan="5" className="text-center text-muted small py-3">No winning trades yet</td></tr>}
+            </tbody>
+          </Table>
+
+          <h6 className="fw-bold mb-3 border-bottom pb-2 text-danger">Loss Makers ({performanceData.losers.length})</h6>
+          <Table responsive variant="dark" hover className="dense-table mb-0">
+            <thead>
+              <tr className="text-muted small">
+                <th>Symbol</th>
+                <th className="text-end">Realized</th>
+                <th className="text-end">Unrealized</th>
+                <th className="text-end">Total P&L</th>
+                <th className="text-center">Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {performanceData.losers.map(p => (
+                <tr key={p.symbol}>
+                  <td className="fw-bold">{p.symbol}</td>
+                  <td className={`text-end ${p.realized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.realized.toFixed(2)}</td>
+                  <td className={`text-end ${p.unrealized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
+                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.total.toFixed(2)}</td>
+                  <td className="text-center">
+                    <Badge bg={p.trend === 'UP' ? 'success' : 'danger'}>{p.trend}</Badge>
+                  </td>
+                </tr>
+              ))}
+              {performanceData.losers.length === 0 && <tr><td colSpan="5" className="text-center text-muted small py-3">No losing trades yet</td></tr>}
+            </tbody>
+          </Table>
+          
+          <div className="text-end mt-4">
+            <Button variant="outline-primary" size="sm" onClick={handleDownloadReport}>
+              <i className="bi bi-file-earmark-excel me-1"></i> DOWNLOAD EXCEL REPORT
+            </Button>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* Bot Logic Explanation Modal */}
+      <Modal show={showLogicModal} onHide={() => setShowLogicModal(false)} size="lg" centered className="dark-modal">
+        <Modal.Header closeButton style={{ background: '#111', borderBottom: '1px solid #333' }}>
+          <Modal.Title className="text-info"><i className="bi bi-cpu-fill me-2"></i> Algohydrogen Bot Intelligence</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ background: '#000', color: '#eee', padding: '30px' }}>
+          <div className="logic-diagram mb-4">
+            <div className="d-flex flex-column align-items-center gap-3">
+              <div className="logic-step p-3 rounded border border-info w-75 text-center bg-dark">
+                <h6 className="text-info fw-bold mb-1">STEP 1: TREND DETECTION</h6>
+                <small>Bot uses <b>Supertrend (10, 1.5)</b> on 1-min candles to identify primary direction.</small>
+              </div>
+              <i className="bi bi-arrow-down fs-4 text-muted"></i>
+              <div className="logic-step p-3 rounded border border-warning w-75 text-center bg-dark">
+                <h6 className="text-warning fw-bold mb-1">STEP 2: WHIPSAW PROTECTION</h6>
+                <small><b>Adaptive Mode</b> monitors trend flip frequency. If noise is detected, it increases the multiplier up to <b>5.0</b> automatically.</small>
+              </div>
+              <i className="bi bi-arrow-down fs-4 text-muted"></i>
+              <div className="logic-step p-3 rounded border border-success w-75 text-center bg-dark">
+                <h6 className="text-success fw-bold mb-1">STEP 3: RSI SIGNAL FILTER</h6>
+                <small>Bot checks <b>RSI (14)</b>. It skips BUY if RSI {'>'} 70 (Overbought) and skips SELL if RSI {'<'} 30 (Oversold).</small>
+              </div>
+              <i className="bi bi-arrow-down fs-4 text-muted"></i>
+              <div className="logic-step p-3 rounded border border-primary w-75 text-center bg-dark shadow-lg">
+                <h6 className="text-primary fw-bold mb-1">STEP 4: EXECUTION</h6>
+                <small>Orders are placed only when all filters pass. Margin is calculated at <b>5x leverage</b> for paper trading.</small>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 rounded bg-secondary bg-opacity-10 border border-secondary mt-4">
+             <h6 className="fw-bold text-white"><i className="bi bi-info-circle me-2"></i> How the Bot "Thinks"</h6>
+             <div className="row g-3">
+               <div className="col-md-6">
+                 <div className="small fw-bold text-info mb-1 uppercase">Automatic Logic</div>
+                 <ul className="small text-muted ps-3 mb-0">
+                   <li className="mb-1">Filters trends using RSI and Volatility.</li>
+                   <li className="mb-1">Auto-scales quantities based on settings.</li>
+                   <li>Closes and reverses positions instantly.</li>
+                 </ul>
+               </div>
+               <div className="col-md-6">
+                 <div className="small fw-bold text-warning mb-1 uppercase">Manual Interaction</div>
+                 <ul className="small text-muted ps-3 mb-0">
+                   <li className="mb-1">You can override any auto-trade at any time.</li>
+                   <li className="mb-1">"Create New Trade" bypasses filters for instant entry.</li>
+                   <li>"Close Existing" locks the stock from auto-re-entry.</li>
+                 </ul>
+               </div>
+             </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-top border-secondary">
+             <h6 className="fw-bold text-info mb-3"><i className="bi bi-lightbulb me-2"></i> User Guidelines (Best Practices)</h6>
+             <div className="row g-3">
+               <div className="col-md-6">
+                 <div className="p-3 rounded bg-dark border border-info border-opacity-25 h-100">
+                    <div className="small fw-bold text-info mb-2">🤖 AUTO MODE TIPS</div>
+                    <ul className="x-small text-muted ps-3 mb-0">
+                      <li className="mb-2">Use <b>Adaptive Mode ON</b> during sideways markets to reduce noise.</li>
+                      <li className="mb-2">Check the <b>Performance Modal</b> every 2 hours to monitor net P&L.</li>
+                      <li>Set <b>Algo Quantity</b> to a safe level (e.g. 10-50) before going Full Auto.</li>
+                    </ul>
+                 </div>
+               </div>
+               <div className="col-md-6">
+                 <div className="p-3 rounded bg-dark border border-warning border-opacity-25 h-100">
+                    <div className="small fw-bold text-warning mb-2">🖐️ MANUAL MODE TIPS</div>
+                    <ul className="x-small text-muted ps-3 mb-0">
+                      <li className="mb-2">Use <b>Manual Entry</b> for news-based breakouts that indicators might miss.</li>
+                      <li className="mb-2">If you see a trend reversal coming, use <b>Close Existing</b> ahead of the bot.</li>
+                      <li>Always use <b>Reset</b> at the end of the day to clear the trade history.</li>
+                    </ul>
+                 </div>
+               </div>
+             </div>
+          </div>
+        </Modal.Body>
+        <Modal.Footer style={{ background: '#111', borderTop: '1px solid #333' }}>
+          <Button variant="outline-info" size="sm" onClick={() => setShowLogicModal(false)}>Got it, I'm ready!</Button>
         </Modal.Footer>
       </Modal>
     </Container>

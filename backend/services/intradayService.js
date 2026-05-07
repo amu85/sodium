@@ -1,5 +1,5 @@
 const { KiteTicker, KiteConnect } = require("kiteconnect");
-const { calculateSupertrend } = require("../utils/indicators");
+const { calculateSupertrend, calculateRSI } = require("../utils/indicators");
 const storeLog = require("../logger");
 const fs = require("fs");
 const path = require("path");
@@ -275,6 +275,7 @@ function getStatus(period = 10, multiplier = 1.5) {
             candle_count: allCandles.length,
             supertrend: latest ? latest.supertrend : null,
             trend: latest ? latest.trend : null,
+            rsi: calculateRSI(allCandles, 14).slice(-1)[0],
             effectiveMultiplier: effectiveMult,
             current_candle: data.current_candle
         };

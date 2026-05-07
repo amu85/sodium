@@ -104,4 +104,37 @@ function calculateSupertrend(candles, period = 10, multiplier = 3) {
     }));
 }
 
-module.exports = { calculateSupertrend };
+/**
+ * Calculate Relative Strength Index (RSI)
+ */
+function calculateRSI(candles, period = 14) {
+    if (candles.length < period + 1) return Array(candles.length).fill(null);
+
+    const changes = candles.map((c, i) => {
+        if (i === 0) return 0;
+        return c.close - candles[i - 1].close;
+    });
+
+    const rsiList = Array(candles.length).fill(null);
+    let gains = changes.map(c => c > 0 ? c : 0);
+    let losses = changes.map(c => c < 0 ? Math.abs(c) : 0);
+
+    let avgGain = gains.slice(1, period + 1).reduce((a, b) => a + b, 0) / period;
+    let avgLoss = losses.slice(1, period + 1).reduce((a, b) => a + b, 0) / period;
+
+    for (let i = period + 1; i < candles.length; i++) {
+        avgGain = (avgGain * (period - 1) + gains[i]) / period;
+        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+
+        if (avgLoss === 0) {
+            rsiList[i] = 100;
+        } else {
+            const rs = avgGain / avgLoss;
+            rsiList[i] = 100 - (100 / (1 + rs));
+        }
+    }
+
+    return rsiList.map(v => v !== null ? parseFloat(v.toFixed(2)) : null);
+}
+
+module.exports = { calculateSupertrend, calculateRSI };

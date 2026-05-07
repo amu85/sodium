@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import API from '../api';
 import { Table, Button, Spinner } from 'react-bootstrap';
@@ -9,6 +10,7 @@ import useUsers from '../hooks/useUsers';
 
 const DashboardPage = () => {
   const { token, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
   const { users, fetchUsers } = useUsers(token, false);
   const [loadingUserFund, setLoadingUserFund] = useState(false);
   const [expandedHoldingsRow, setExpandedHoldingsRow] = useState(null);
@@ -87,18 +89,18 @@ const DashboardPage = () => {
       <div className="theme-content-wrapper">
         <div className="row">
           <div className="col-xxl-6 col-xl-6 col-lg-6 col-md-6">
-          <p className="last-updates-text">
-            Last updated at <strong>{lastUpdated}</strong>{' '}
-            {loadingUserFund ? (
-              <Button size="sm" variant="warning" disabled>
-                <Spinner animation="border" size="sm" />
-              </Button>
-            ) : (
-              <Button size="sm" variant="warning" onClick={getUserFunds}>
-                <i className="bi bi-arrow-clockwise"></i>
-              </Button>
-            )}
-          </p>
+            <p className="last-updates-text">
+              Last updated at <strong>{lastUpdated}</strong>{' '}
+              {loadingUserFund ? (
+                <Button size="sm" variant="warning" disabled>
+                  <Spinner animation="border" size="sm" />
+                </Button>
+              ) : (
+                <Button size="sm" variant="warning" onClick={getUserFunds}>
+                  <i className="bi bi-arrow-clockwise"></i>
+                </Button>
+              )}
+            </p>
           </div>
           <div className="col-xxl-6 col-xl-6 col-lg-6 col-md-6 text-end">
           </div>
