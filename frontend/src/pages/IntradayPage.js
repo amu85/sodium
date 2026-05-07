@@ -674,9 +674,9 @@ const IntradayPage = () => {
         <Row className="g-4">
           {/* Main Dashboard Area */}
           <Col lg={12} className={fullScreen ? 'full-screen-mode' : ''}>
-            <Card style={glassStyle} className={`h-100 shadow-lg border-0 overflow-hidden theme-card ${fullScreen ? 'rounded-0' : ''}`}>
+            <Card className={`h-100 shadow-sm border-0 overflow-hidden theme-card ${fullScreen ? 'rounded-0' : ''}`}>
               {/* PREMIUM MASTER HEADER */}
-              <div style={cardHeaderStyle} className="d-flex justify-content-between align-items-center flex-wrap py-2 px-3 border-bottom shadow-sm">
+              <div className="d-flex justify-content-between align-items-center flex-wrap py-2 px-3 theme-header">
                 <div className="d-flex align-items-center flex-wrap gap-2">
                   {/* Stock Selector Group */}
                   <div className="d-flex align-items-center pe-2 border-end" style={{ borderColor: 'var(--glass-border) !important' }}>
@@ -926,15 +926,7 @@ const IntradayPage = () => {
               </div>
               
               {/* Pro Paper Trading Status Bar */}
-              <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3" 
-                style={{ 
-                  background: themeMode === 'dark' 
-                    ? 'linear-gradient(135deg, rgba(13, 17, 23, 0.95) 0%, rgba(22, 27, 34, 0.9) 100%)' 
-                    : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)', 
-                  backdropFilter: 'blur(20px)',
-                  borderBottom: `1px solid ${themeMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'} !important`,
-                  boxShadow: themeMode === 'dark' ? '0 4px 30px rgba(0, 0, 0, 0.5)' : '0 4px 15px rgba(0, 0, 0, 0.05)'
-                }}>
+              <div className="px-4 py-3 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-3 stats-bar-theme">
                 
                 <div className="d-flex align-items-center gap-4">
                   {/* Total Equity Block */}
@@ -1167,8 +1159,8 @@ const IntradayPage = () => {
           <Row className="mt-4 g-3">
             {/* Top 5 Performers Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
-                <div style={cardHeaderStyle} className="py-2 d-flex justify-content-between align-items-center">
+              <Card className="shadow-sm border-0 h-100 theme-card">
+                <div className="py-2 px-3 d-flex justify-content-between align-items-center theme-header">
                    <span>Top 5 Performers</span>
                    <Badge bg="primary" className="opacity-75">Analytics</Badge>
                 </div>
@@ -1212,8 +1204,8 @@ const IntradayPage = () => {
 
             {/* Active Positions Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
-                <div style={cardHeaderStyle} className="py-2">Active Positions</div>
+              <Card className="shadow-sm border-0 h-100 theme-card">
+                <div className="py-2 px-3 theme-header">Active Positions</div>
                 <Card.Body className="p-0">
                   <Table responsive hover className="mb-0 bg-transparent theme-table">
                     <thead>
@@ -1265,8 +1257,8 @@ const IntradayPage = () => {
 
             {/* Trade History Column */}
             <Col lg={4}>
-              <Card style={glassStyle} className="shadow-lg border-0 h-100 theme-card">
-                <div style={cardHeaderStyle} className="py-2 d-flex justify-content-between align-items-center">
+              <Card className="shadow-sm border-0 h-100 theme-card">
+                <div className="py-2 px-3 d-flex justify-content-between align-items-center theme-header">
                   <span>Trade History</span>
                   <Button variant="outline-info" size="sm" className="px-2 py-0 fw-bold" style={{ fontSize: '0.65rem' }} onClick={handleDownloadReport}>
                     <i className="bi bi-file-earmark-arrow-down me-1"></i> CSV
@@ -1398,20 +1390,98 @@ const IntradayPage = () => {
             50% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); transform: scale(1.05); }
             100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
           }
-          .hover-bg-dark:hover {
-            background-color: rgba(255, 255, 255, 0.05) !important;
+          /* THEME SYSTEM: CLEAN PRO STYLE */
+          body.light-mode {
+            --page-bg: #f8f9fb;
+            --card-bg: #ffffff;
+            --text-main: #444444;
+            --text-heading: #222222;
+            --text-muted: #9b9b9b;
+            --border-color: #e0e3e7;
+            --header-bg: #f8f9fb;
+            --hover-bg: #f1f3f6;
+            --input-bg: #ffffff;
           }
-          body.dark-mode .hover-bg-dark:hover {
-            background-color: rgba(0, 0, 0, 0.05) !important;
-          }
-          .transition-all {
-            transition: all 0.3s ease;
-          }
+          
           body.dark-mode {
-            background-color: #f4f7f6 !important;
+            --page-bg: #0d1117;
+            --card-bg: #161b22;
+            --text-main: #c9d1d9;
+            --text-heading: #f0f6fc;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            --header-bg: #161b22;
+            --hover-bg: #21262d;
+            --input-bg: #0d1117;
           }
-          body.dark-mode .main-wrapper.dashboard-section {
-            background-color: #f4f7f6 !important;
+
+          body {
+            background-color: var(--page-bg) !important;
+            color: var(--text-main) !important;
+            transition: background-color 0.3s ease, color 0.3s ease;
+          }
+
+          .main-wrapper.dashboard-section {
+            background-color: var(--page-bg) !important;
+          }
+
+          .theme-card {
+            background: var(--card-bg) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border-color) !important;
+            border-radius: 4px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+          }
+
+          .theme-table {
+            color: var(--text-main) !important;
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+          }
+
+          .theme-table thead th {
+            background: var(--header-bg) !important;
+            color: var(--text-muted) !important;
+            font-weight: 500 !important;
+            text-transform: uppercase !important;
+            font-size: 11px !important;
+            letter-spacing: 0.5px !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            padding: 12px 15px !important;
+          }
+
+          .theme-table td {
+            padding: 12px 15px !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            vertical-align: middle !important;
+          }
+
+          .theme-table tr:hover td {
+            background-color: var(--hover-bg) !important;
+          }
+
+          .stats-bar-theme {
+            background: var(--card-bg) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+          }
+
+          .theme-header {
+            background: var(--header-bg) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            color: var(--text-heading) !important;
+          }
+
+          .transition-all {
+            transition: all 0.2s ease;
+          }
+
+          .hover-bg-dark:hover {
+            background-color: var(--hover-bg) !important;
+          }
+
+          .dense-table td, .dense-table th {
+            padding: 8px 12px !important;
+            font-size: 13px !important;
           }
 
           .full-screen-mode {
@@ -1430,16 +1500,27 @@ const IntradayPage = () => {
             border-radius: 0 !important;
           }
 
-          .dense-table td, .dense-table th {
-            padding: 8px 12px !important;
-            font-size: 0.85rem !important;
+          .chart-modal .modal-content, .trade-logic-modal .modal-content {
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            background: var(--card-bg) !important;
+            color: var(--text-main) !important;
           }
-          .dense-table tr:hover {
-            background-color: rgba(255,255,255,0.05) !important;
+
+          .modal-header {
+            background: var(--header-bg) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            color: var(--text-heading) !important;
           }
-          .chart-modal .modal-content {
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+
+          .modal-body {
+            background: var(--card-bg) !important;
+            color: var(--text-main) !important;
+          }
+
+          .modal-footer {
+            background: var(--header-bg) !important;
+            border-top: 1px solid var(--border-color) !important;
           }
         `}</style>
       {/* Chart Modal */}
@@ -1451,13 +1532,13 @@ const IntradayPage = () => {
         fullscreen="lg-down"
         className="chart-modal"
       >
-        <Modal.Header closeButton style={{ background: '#1a1a1a', borderBottom: '1px solid #333', color: 'white' }}>
+        <Modal.Header closeButton>
           <Modal.Title className="fw-bold">
             <i className="bi bi-graph-up-arrow me-2 text-primary"></i>
             {modalStock?.symbol} Live Chart
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ background: '#121212', padding: 0 }}>
+        <Modal.Body style={{ padding: 0 }}>
           <div style={{ height: '70vh' }}>
             {chartData.length > 0 ? (
               <TradingChart 
@@ -1475,7 +1556,7 @@ const IntradayPage = () => {
             )}
           </div>
         </Modal.Body>
-        <Modal.Footer style={{ background: '#1a1a1a', borderTop: '1px solid #333' }}>
+        <Modal.Footer>
           <div className="d-flex justify-content-between w-100 align-items-center">
             <div className="d-flex gap-3 text-muted small">
               <span>Period: <b>{stPeriod}</b></span>
@@ -1488,13 +1569,13 @@ const IntradayPage = () => {
 
       {/* Trade Logic Reason Modal */}
       <Modal show={showReasonModal} onHide={() => setShowReasonModal(false)} centered size="md" className="trade-logic-modal">
-        <Modal.Header closeButton style={{ background: '#1a1a1a', borderBottom: '1px solid #333', color: 'white' }}>
+        <Modal.Header closeButton>
           <Modal.Title className="fw-bold">
             <i className="bi bi-cpu me-2 text-info"></i>
             Trade Logic: {selectedTrade?.symbol}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body style={{ background: '#121212', color: '#e0e0e0', padding: '25px' }}>
+        <Modal.Body style={{ padding: '25px' }}>
           {selectedTrade && (
             <div className="trade-detail-content">
               <div className="d-flex justify-content-between align-items-center mb-4 p-3 rounded" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -1563,7 +1644,7 @@ const IntradayPage = () => {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer style={{ background: '#1a1a1a', borderTop: '1px solid #333' }}>
+        <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowReasonModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
