@@ -5,5 +5,6 @@ const paperController = require('../controllers/paperController');
 router.get('/status', paperController.getPaperStatus);
 router.post('/order', paperController.placePaperOrder);
 router.post('/reset', paperController.resetPaper);
+router.post('/square-off', paperController.squareOff);
 
 module.exports = router;

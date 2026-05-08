@@ -128,3 +128,48 @@ exports.resetPaper = (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+exports.squareOff = (req, res) => {
+    try {
+        const { symbols } = req.body; 
+        const data = readPaperData();
+        const intradayService = require('../services/intradayService');
+        const status = intradayService.getStatus();
+        
+        let symbolsToClose = symbols || data.positions.map(p => p.symbol);
+        if (!Array.isArray(symbolsToClose)) symbolsToClose = [symbolsToClose];
+
+        for (const symbol of symbolsToClose) {
+            const pos = data.positions.find(p => p.symbol === symbol);
+            if (!pos) continue;
+            
+            const inst = status.instruments?.find(i => i.symbol === symbol);
+            const price = inst ? inst.ltp : pos.avgPrice;
+            const action = pos.quantity > 0 ? 'SELL' : 'BUY';
+            const timestamp = new Date().toISOString();
+            
+            const profit = (price - pos.avgPrice) * pos.quantity;
+            data.balance += profit;
+            
+            data.trades.push({
+                symbol,
+                type: action,
+                quantity: Math.abs(pos.quantity),
+                price,
+                profit,
+                entryPrice: pos.avgPrice,
+                exitPrice: price,
+                reason: "Manual Square-off",
+                timestamp
+            });
+            
+            data.positions = data.positions.filter(p => p.symbol !== symbol);
+            storeLog(`[PAPER] Squared off ${symbol} at ${price} (Profit: ${profit.toFixed(2)})`);
+        }
+        
+        writePaperData(data);
+        res.json({ success: true, data });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};

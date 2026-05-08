@@ -5,6 +5,7 @@ const storeLog = require("../logger");
 const { isMarketOpen } = require("../utils/market");
 const { readUsers, writeUsers } = require("../utils/userFileUtils");
 const { getLTP, getMargins, filterInstruments, getUniqueInstrumentOptions, placeOrder, getISTDateTime } = require("../services/kiteService");
+const intradayService = require("../services/intradayService");
 
 if (!global.cronJobs) global.cronJobs = {};
 if (!global.isAlgoRunning) global.isAlgoRunning = {};
@@ -537,7 +538,7 @@ const startAlgo = (req, res) => {
     }
   }
 
-  const job = cron.schedule("*/1 * * * * *", algoCycle);
+  const job = cron.schedule("*/5 * * * * *", algoCycle);
   global.cronJobs[strategyKey] = job;
 
   // job.start();
@@ -617,20 +618,27 @@ const stopAlgo = async (req, res) => {
 };
 
 const statusAlgo = (req, res) => {
-  const strategyName = req.query.strategyName || req.body.strategyName;
-  const config = readConfig();
-  const algoStatus = config.algoRunning || {};
+  try {
+    const strategyName = req.query.strategyName || req.body.strategyName;
+    const config = readConfig();
+    const algoStatus = config.algoRunning || {};
+    const algoConfig = JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, "utf8"));
 
-  if (strategyName) {
-    const key = strategyName.toUpperCase();
-    return res.json({
-      strategy: key,
-      running: !!algoStatus[key],
-    });
+    const responseData = {
+      runningStatus: algoStatus,
+      ...algoConfig // Spread the algoConfig (autoTradingEnabled, adaptiveMode, tradingMode, etc.)
+    };
+
+    if (strategyName) {
+      const key = strategyName.toUpperCase();
+      responseData.strategy = key;
+      responseData.running = !!algoStatus[key];
+    }
+
+    res.json(responseData);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  // return all statuses
-  res.json({ runningStatus: algoStatus });
 };
 
 async function startAlgoInternal(strategyName) {
@@ -656,7 +664,7 @@ function scheduleExitTimeCheck() {
 
   let lastRestartMinute = {};
 
-  exitTimeCron = cron.schedule("*/1 * * * * *", async () => {
+  exitTimeCron = cron.schedule("*/5 * * * * *", async () => {
     try {
       const config = readConfig();
       if (!config.perpetualCycle) return; // skip if perpetual cycle disabled
@@ -743,16 +751,21 @@ const toggleAdaptive = (req, res) => {
 
 const updateSettings = (req, res) => {
   try {
-    const { period, multiplier, defaultQuantity } = req.body;
+    const { period, multiplier, defaultQuantity, tradingMode, maxConcurrentPositions, dailyLossLimit, autoSquareOffOnLimit } = req.body;
     const algoConfig = JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, "utf8"));
     
-    if (period !== undefined) algoConfig.stPeriod = period;
-    if (multiplier !== undefined) algoConfig.stMultiplier = multiplier;
-    if (defaultQuantity !== undefined) algoConfig.defaultQuantity = defaultQuantity;
+    if (period !== undefined) algoConfig.stPeriod = Number(period);
+    if (multiplier !== undefined) algoConfig.stMultiplier = Number(multiplier);
+    if (defaultQuantity !== undefined) algoConfig.defaultQuantity = Number(defaultQuantity);
+    
+    if (tradingMode !== undefined) algoConfig.tradingMode = tradingMode;
+    if (maxConcurrentPositions !== undefined) algoConfig.maxConcurrentPositions = Number(maxConcurrentPositions);
+    if (dailyLossLimit !== undefined) algoConfig.dailyLossLimit = Number(dailyLossLimit);
+    if (autoSquareOffOnLimit !== undefined) algoConfig.autoSquareOffOnLimit = autoSquareOffOnLimit;
 
     fs.writeFileSync(ALGO_CONFIG_FILE, JSON.stringify(algoConfig, null, 2));
-    storeLog(`[ALGO] Settings updated: Period=${period}, Multiplier=${multiplier}`);
-    res.json({ success: true, message: "Settings updated" });
+    storeLog(`[ALGO] Settings updated: Mode=${algoConfig.tradingMode}, Qty=${algoConfig.defaultQuantity}`);
+    res.json({ success: true, message: "Settings updated", config: algoConfig });
   } catch (err) {
     storeLog(`[ALGO] Failed to update settings: ${err.message}`);
     res.status(500).json({ success: false, message: err.message });
@@ -791,10 +804,56 @@ const updateAlgoStocks = (req, res) => {
 
 const resetAlgo = (req, res) => {
   try {
-    storeLog("[ALGO] Resetting AI memory and state...");
-    // Perform any internal reset logic here if needed
-    res.json({ success: true, message: "AI memory reset" });
+    storeLog("[ALGO] Master Reset Triggered: Clearing AI memory and Live Algo state...");
+    
+    // 1. Reset Intraday Service (Candles, Indicators)
+    intradayService.resetData();
+    
+    // 2. Reset Live Algo State (NIFTY, SENSEX, BANKNIFTY)
+    const config = readConfig();
+    const strategies = ['NIFTY', 'SENSEX', 'BANKNIFTY'];
+    
+    strategies.forEach(s => {
+      config[`userAlgo${s}Positions`] = {};
+      config[`userAlgo${s}PositionsHistory`] = {};
+      if (config.globalAdjustmentCount) {
+        config.globalAdjustmentCount[s] = 0;
+      }
+    });
+    
+    writeConfig(config);
+    
+    res.json({ success: true, message: "Master Reset successful: AI memory and Live Algo state cleared." });
   } catch (err) {
+    storeLog(`[ALGO] Master Reset failed: ${err.message}`);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const getAlgoConfig = (req, res) => {
+  try {
+    const algoConfig = JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, "utf8"));
+    res.json(algoConfig);
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const updateRiskSettings = (req, res) => {
+  try {
+    const { tradingMode, maxConcurrentPositions, dailyLossLimit, autoSquareOffOnLimit } = req.body;
+    const algoConfig = JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, "utf8"));
+    
+    if (tradingMode !== undefined) algoConfig.tradingMode = tradingMode;
+    if (maxConcurrentPositions !== undefined) algoConfig.maxConcurrentPositions = Number(maxConcurrentPositions);
+    if (dailyLossLimit !== undefined) algoConfig.dailyLossLimit = Number(dailyLossLimit);
+    if (autoSquareOffOnLimit !== undefined) algoConfig.autoSquareOffOnLimit = autoSquareOffOnLimit;
+
+    fs.writeFileSync(ALGO_CONFIG_FILE, JSON.stringify(algoConfig, null, 2));
+    storeLog(`[ALGO] Risk Settings Updated: Mode=${algoConfig.tradingMode}, MaxPos=${algoConfig.maxConcurrentPositions}, LossLimit=${algoConfig.dailyLossLimit}`);
+    res.json({ success: true, message: "Risk settings updated", config: algoConfig });
+  } catch (err) {
+    storeLog(`[ALGO] Failed to update risk settings: ${err.message}`);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -802,6 +861,6 @@ const resetAlgo = (req, res) => {
 module.exports = { 
   readConfig, startAlgo, stopAlgo, statusAlgo, 
   toggleAdaptive, updateSettings, toggleAutoTrade, 
-  updateAlgoStocks, resetAlgo,
+  updateAlgoStocks, resetAlgo, getAlgoConfig, updateRiskSettings,
   startAlgoInternal, stopAlgoInternal, scheduleExitTimeCheck 
 };

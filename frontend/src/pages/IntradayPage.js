@@ -34,6 +34,13 @@ const IntradayPage = () => {
   const [selectedPerformer, setSelectedPerformer] = useState(null);
   const [defaultQuantity, setDefaultQuantity] = useState(10);
   const [themeMode, setThemeMode] = useState(localStorage.getItem('mode') || 'light');
+  
+  // Risk Management State
+  const [tradingMode, setTradingMode] = useState('STANDARD');
+  const [maxPos, setMaxPos] = useState(5);
+  const [lossLimit, setLossLimit] = useState(10000);
+  const [autoSQ, setAutoSQ] = useState(false);
+  const [isSavingRisk, setIsSavingRisk] = useState(false);
 
   const [selectedTokens, setSelectedTokens] = useState([]);
   const [showChartModal, setShowChartModal] = useState(false);
@@ -194,6 +201,11 @@ const IntradayPage = () => {
       if (response.data.effectiveMultiplier) setEffectiveMultiplier(response.data.effectiveMultiplier);
       if (response.data.defaultQuantity) setDefaultQuantity(response.data.defaultQuantity);
       
+      if (response.data.tradingMode) setTradingMode(response.data.tradingMode);
+      if (response.data.maxConcurrentPositions) setMaxPos(response.data.maxConcurrentPositions);
+      if (response.data.dailyLossLimit) setLossLimit(response.data.dailyLossLimit);
+      if (response.data.autoSquareOffOnLimit !== undefined) setAutoSQ(response.data.autoSquareOffOnLimit);
+
       if (response.data.autoTradeStocks) {
         const tokens = response.data.autoTradeStocks
           .map(sym => STOCKS_LIST.find(s => s.symbol === sym)?.token)
@@ -367,18 +379,27 @@ const IntradayPage = () => {
   };
 
   const handleResetPaper = async () => {
-    if (!window.confirm("Are you sure you want to RESET paper trading? This will clear all positions, history, and reset balance to ₹10,00,000.")) {
+    if (!window.confirm("Are you sure you want to RESET everything? This will clear all positions, history, indicators, and reset balance to ₹10,00,000.")) {
       return;
     }
 
     try {
+      setLoading(true);
       const response = await API.post('/paper/reset');
-      await API.post('/algo/reset'); // Also reset AI memory
+      await API.post('/algo/reset'); // Resets AI memory and Intraday data
+      
       if (response.data.success) {
         setPaperData(response.data.data);
+        setLiveData({});
+        setChartData([]);
+        alert("Reset successful! All data and indicators have been cleared.");
       }
     } catch (err) {
-      alert("Failed to reset paper trading");
+      console.error("Reset failed", err);
+      alert("Failed to reset trading data: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+      fetchStatus(); // Refresh to get clean state
     }
   };
 
@@ -394,6 +415,20 @@ const IntradayPage = () => {
     }
   };
 
+  const handleSquareOff = async (symbols = null) => {
+    if (!window.confirm(`Are you sure you want to square off ${symbols ? (symbols.length + ' selected') : 'all'} positions?`)) return;
+    
+    try {
+      const response = await API.post('/paper/square-off', { symbols });
+      if (response.data.success) {
+        setPaperData(response.data.data);
+        alert("Square-off successful!");
+      }
+    } catch (err) {
+      alert("Failed to square off: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   const handleToggleAdaptive = async () => {
     const newState = !adaptiveMode;
     try {
@@ -403,6 +438,27 @@ const IntradayPage = () => {
       }
     } catch (err) {
       alert("Failed to toggle adaptive mode");
+    }
+  };
+
+  const handleSaveRiskSettings = async (modeOverride = null) => {
+    setIsSavingRisk(true);
+    try {
+      const response = await API.post('/algo/config', {
+        tradingMode: modeOverride || tradingMode,
+        maxConcurrentPositions: maxPos,
+        dailyLossLimit: lossLimit,
+        autoSquareOffOnLimit: autoSQ
+      });
+      if (response.data.success) {
+        // Only alert if it's a manual save, not a mode toggle
+        if (!modeOverride) alert("Risk Settings Updated Successfully!");
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message;
+      alert("Failed to update risk settings: " + msg);
+    } finally {
+      setIsSavingRisk(false);
     }
   };
 
@@ -637,8 +693,11 @@ const IntradayPage = () => {
             <div>
               <div className={`d-flex align-items-center justify-content-end mb-1`}>
                 <div className={`pulse-dot me-2 ${isServiceRunning ? 'bg-success' : 'bg-danger'}`}></div>
-                <span className={`fw-bold ${isServiceRunning ? 'text-success' : 'text-danger'}`}>
-                  {isServiceRunning ? 'ENGINE RUNNING' : 'ENGINE OFFLINE'}
+                <span className={`fw-bold ${isServiceRunning ? (status?.market_status?.status === 'ACTIVE' ? 'text-success' : 'text-info') : 'text-danger'}`}>
+                  {!isServiceRunning ? 'ENGINE OFFLINE' : 
+                   status?.market_status?.status === 'WAITING' ? 'ENGINE: WAITING (09:20)' :
+                   status?.market_status?.status === 'SQUARING_OFF' ? 'ENGINE: SQUARING OFF' :
+                   status?.market_status?.status === 'CLOSED' ? 'ENGINE: MARKET CLOSED' : 'ENGINE RUNNING'}
                 </span>
                 <a 
                   href="/algo_manual.html" 
@@ -815,7 +874,7 @@ const IntradayPage = () => {
                           variant="success" 
                           size="sm" 
                           className="rounded px-3 fw-bold border-0 shadow-sm transition-all"
-                          style={{ background: '#4caf50', fontSize: '0.8rem', height: '32px' }}
+                          style={{ background: 'var(--trading-green)', fontSize: '0.8rem', height: '32px' }}
                           onClick={() => handleStart()} 
                           disabled={starting || !isServiceRunning}
                         >
@@ -824,8 +883,8 @@ const IntradayPage = () => {
                         <Button 
                           variant="outline-success" 
                           size="sm" 
-                          className="rounded px-3 fw-bold shadow-sm transition-all border-success text-success btn-highlight-pulse"
-                          style={{ fontSize: '0.7rem', height: '32px', background: 'rgba(76, 175, 80, 0.1)' }}
+                          className="rounded px-3 fw-bold shadow-sm transition-all border-success text-trading-success btn-highlight-pulse"
+                          style={{ fontSize: '0.7rem', height: '32px', background: 'rgba(8, 153, 129, 0.1)' }}
                           onClick={handleStartAll} 
                           disabled={starting || !isServiceRunning}
                         >
@@ -870,7 +929,7 @@ const IntradayPage = () => {
                       variant="success" 
                       size="sm" 
                       className="rounded px-3 fw-bold border-0 shadow-sm"
-                      style={{ background: '#2e7d32', fontSize: '0.75rem', height: '32px' }}
+                      style={{ background: 'var(--trading-green)', fontSize: '0.75rem', height: '32px' }}
                       onClick={() => handlePaperOrder('BUY')}
                     >
                       BUY
@@ -942,10 +1001,10 @@ const IntradayPage = () => {
 
                   {/* Balance Block */}
                   <div className="d-flex flex-column">
-                    <span className="fw-bold mb-1" style={{ color: '#ffc107', fontSize: '0.65rem', letterSpacing: '1.2px', textTransform: 'uppercase', opacity: '0.9' }}>Available Fund</span>
+                    <span className="fw-bold mb-1" style={{ color: 'var(--trading-yellow)', fontSize: '0.65rem', letterSpacing: '1.2px', textTransform: 'uppercase', opacity: '0.9' }}>Available Fund</span>
                     <div className="d-flex align-items-center">
-                      <i className="bi bi-wallet2 me-2 fs-5" style={{ color: '#ffc107' }}></i>
-                      <span className="fw-bold" style={{ color: '#ffc107', fontSize: '1.25rem', fontFamily: 'monospace', textShadow: '0 0 15px rgba(255, 193, 7, 0.4)' }}>
+                      <i className="bi bi-wallet2 me-2 fs-5" style={{ color: 'var(--trading-yellow)' }}></i>
+                      <span className="fw-bold" style={{ color: 'var(--trading-yellow)', fontSize: '1.25rem', fontFamily: 'monospace', textShadow: '0 0 15px rgba(234, 179, 8, 0.4)' }}>
                         ₹{(paperData.availableMargin || paperData.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -953,10 +1012,10 @@ const IntradayPage = () => {
 
                   {/* Positions Block */}
                   <div className="d-flex flex-column border-start ps-4" style={{ borderColor: themeMode === 'dark' ? 'rgba(255,255,255,0.15) !important' : 'rgba(0,0,0,0.1) !important' }}>
-                    <span className="text-warning fw-bold mb-1 opacity-75" style={{ fontSize: '0.65rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Active Positions</span>
+                    <span className="text-trading-warning fw-bold mb-1 opacity-75" style={{ fontSize: '0.65rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>Active Positions</span>
                     <div className="d-flex align-items-center">
-                      <i className={`bi bi-layers me-2 fs-5 ${paperData.positions.length > 0 ? 'text-warning' : 'text-muted opacity-50'}`}></i>
-                      <span className={`fw-bold ${paperData.positions.length > 0 ? 'text-warning' : (themeMode === 'dark' ? 'text-white' : 'text-dark')}`} style={{ fontSize: '1.25rem', fontFamily: 'monospace' }}>
+                      <i className={`bi bi-layers me-2 fs-5 ${paperData.positions.length > 0 ? 'text-trading-warning' : 'text-muted opacity-50'}`}></i>
+                      <span className={`fw-bold ${paperData.positions.length > 0 ? 'text-trading-warning' : (themeMode === 'dark' ? 'text-white' : 'text-dark')}`} style={{ fontSize: '1.25rem', fontFamily: 'monospace' }}>
                         {paperData.positions.length}
                       </span>
                     </div>
@@ -966,7 +1025,7 @@ const IntradayPage = () => {
                 <div className="d-flex align-items-center gap-5">
                   {/* Real-time P&L Block */}
                   <div className="d-flex flex-column text-end">
-                    <span className="fw-bold mb-1" style={{ color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131', fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
+                    <span className="fw-bold mb-1" style={{ color: calculateTotalPnL() >= 0 ? '#089981' : '#f23645', fontSize: '0.7rem', letterSpacing: '1.2px', textTransform: 'uppercase' }}>
                       <div className="stat-card p&l">
                         <span className="stat-label">UNREALIZED P&L</span>
                         <div className={`stat-value ${paperData.unrealizedPnl >= 0 ? 'up' : 'down'}`}>
@@ -975,13 +1034,13 @@ const IntradayPage = () => {
                       </div>
                     </span>
                     <div className="d-flex align-items-center justify-content-end">
-                      <i className={`bi ${calculateTotalPnL() >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill'} me-2 fs-4`} style={{ color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131' }}></i>
+                      <i className={`bi ${calculateTotalPnL() >= 0 ? 'bi-caret-up-fill' : 'bi-caret-down-fill'} me-2 fs-4`} style={{ color: calculateTotalPnL() >= 0 ? '#089981' : '#f23645' }}></i>
                       <span className="fw-bold" style={{ 
-                        color: calculateTotalPnL() >= 0 ? '#00ff00' : '#ff3131', 
+                        color: calculateTotalPnL() >= 0 ? '#089981' : '#f23645', 
                         fontSize: '1.6rem', 
                         fontFamily: 'monospace', 
                         textShadow: themeMode === 'dark' 
-                          ? (calculateTotalPnL() >= 0 ? '0 0 20px rgba(0, 255, 0, 0.6)' : '0 0 20px rgba(255, 49, 49, 0.6)')
+                          ? (calculateTotalPnL() >= 0 ? '0 0 20px rgba(8, 153, 129, 0.4)' : '0 0 20px rgba(242, 54, 69, 0.4)')
                           : 'none'
                       }}>
                         {calculateTotalPnL() >= 0 ? '+' : ''}₹{calculateTotalPnL().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1058,6 +1117,106 @@ const IntradayPage = () => {
                     </Button>
                   </div>
                 </div>
+
+                {/* NEW: RISK MANAGEMENT & TRADING MODE TOOLBAR */}
+                <div className="px-4 py-2 border-bottom d-flex align-items-center gap-4 flex-wrap" style={{ background: themeMode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)' }}>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="small fw-bold text-muted uppercase me-2" style={{ letterSpacing: '0.5px' }}>Trading Mode:</span>
+                    <div className="btn-group btn-group-sm shadow-sm rounded-pill overflow-hidden border border-secondary border-opacity-25">
+                      <Button 
+                        variant={tradingMode === 'STANDARD' ? 'primary' : 'outline-secondary'} 
+                        className={`px-3 py-1 border-0 fw-bold ${tradingMode === 'STANDARD' ? 'bg-primary text-white' : ''}`}
+                        onClick={() => { setTradingMode('STANDARD'); handleSaveRiskSettings('STANDARD'); }}
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        STANDARD
+                      </Button>
+                      <Button 
+                        variant={tradingMode === 'PRO_SAFE' ? 'warning' : 'outline-secondary'} 
+                        className={`px-3 py-1 border-0 fw-bold ${tradingMode === 'PRO_SAFE' ? 'bg-warning text-dark' : ''}`}
+                        onClick={() => { setTradingMode('PRO_SAFE'); handleSaveRiskSettings('PRO_SAFE'); }}
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        SAFE PRO <i className="bi bi-shield-check ms-1"></i>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {tradingMode === 'PRO_SAFE' && (
+                    <div className="d-flex align-items-center gap-4 ps-4 border-start animate__animated animate__fadeIn" style={{ borderColor: 'rgba(255,255,255,0.1) !important' }}>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="x-small text-muted fw-bold">MAX POSITIONS:</span>
+                        <Form.Control 
+                          type="number" 
+                          size="sm" 
+                          value={maxPos} 
+                          onChange={(e) => setMaxPos(e.target.value)}
+                          style={{ width: '55px', height: '28px', fontSize: '0.85rem' }}
+                          className="bg-dark bg-opacity-25 border-secondary text-white text-center rounded shadow-none"
+                        />
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="x-small text-muted fw-bold">DAILY LOSS LIMIT:</span>
+                        <div className="input-group input-group-sm" style={{ width: '130px' }}>
+                          <span className="input-group-text bg-transparent border-secondary text-muted px-2" style={{ height: '28px' }}>₹</span>
+                          <Form.Control 
+                            type="number" 
+                            value={lossLimit} 
+                            onChange={(e) => setLossLimit(e.target.value)}
+                            style={{ height: '28px', fontSize: '0.85rem' }}
+                            className="bg-dark bg-opacity-25 border-secondary text-white text-center shadow-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="x-small text-muted fw-bold">AUTO SQ OFF:</span>
+                        <Form.Check 
+                          type="switch" 
+                          id="auto-sq-off"
+                          checked={autoSQ}
+                          onChange={(e) => setAutoSQ(e.target.checked)}
+                          className="custom-switch-small"
+                        />
+                      </div>
+                      <Button 
+                        variant="success" 
+                        size="sm" 
+                        className="rounded-pill px-3 py-0 fw-bold border-0 shadow-sm" 
+                        style={{ height: '28px', fontSize: '0.7rem', background: '#27ae60' }}
+                        onClick={() => handleSaveRiskSettings()}
+                        disabled={isSavingRisk}
+                      >
+                        {isSavingRisk ? 'SAVING...' : 'SYNC RISK SETTINGS'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {tradingMode === 'STANDARD' && (
+                    <div className="small text-muted italic opacity-50 ps-3 animate__animated animate__fadeIn">
+                      <i className="bi bi-lightning-fill me-1 text-primary"></i> Standard mode runs without safety guards.
+                    </div>
+                  )}
+                </div>
+                <div className="px-3 pb-2 d-flex align-items-center gap-2">
+                  <Button variant="outline-primary" className="rounded-pill px-3 py-1" onClick={handleStartAll} disabled={starting} style={{ height: '32px', fontSize: '0.7rem' }}>
+                    <i className="bi bi-play-all me-1"></i> MONITOR ALL
+                  </Button>
+                  <Button 
+                    variant="outline-danger" 
+                    className="rounded-pill px-3 py-1" 
+                    style={{ height: '32px', fontSize: '0.7rem' }}
+                    onClick={() => {
+                      const selectedSymbols = selectedTokens.map(t => STOCKS_LIST.find(s => s.token === t)?.symbol).filter(Boolean);
+                      if (selectedSymbols.length === 0) {
+                        alert("Please select stocks from the list below to square off.");
+                        return;
+                      }
+                      handleSquareOff(selectedSymbols);
+                    }}
+                  >
+                    <i className="bi bi-stop-circle me-1"></i> SQUARE OFF SELECTED
+                  </Button>
+                </div>
               </div>
 
               <Card.Body className="p-0 overflow-auto" style={{ height: '600px' }}>
@@ -1106,12 +1265,12 @@ const IntradayPage = () => {
                           </td>
                           <td className="text-end fw-bold">
                             {inst ? (
-                              <span className={parseFloat(chgPercent) >= 0 ? 'text-success' : 'text-danger'}>
+                              <span className={parseFloat(chgPercent) >= 0 ? 'text-trading-success' : 'text-trading-danger'}>
                                 {inst.ltp.toFixed(2)}
                               </span>
                             ) : '---'}
                           </td>
-                          <td className={`text-end small ${parseFloat(chgPercent) >= 0 ? 'text-success' : 'text-danger'}`}>
+                          <td className={`text-end small ${parseFloat(chgPercent) >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>
                             {parseFloat(chgPercent) > 0 ? '+' : ''}{chgPercent}%
                           </td>
                           <td className="text-end text-muted small">
@@ -1119,14 +1278,14 @@ const IntradayPage = () => {
                           </td>
                           <td className="text-center">
                             {inst?.trend ? (
-                              <Badge bg={inst.trend === 'UP' ? 'success' : 'danger'} className="px-2 py-1">
+                              <Badge className={`${inst.trend === 'UP' ? 'bg-trading-success' : 'bg-trading-danger'} px-2 py-1`}>
                                 {inst.trend}
                               </Badge>
                             ) : <Badge bg="secondary" className="opacity-50">NONE</Badge>}
                           </td>
                           <td className="text-center">
                             {inst?.ltp && inst?.supertrend ? (
-                              <Badge bg={inst.ltp > inst.supertrend ? 'success' : 'danger'} pill className="pulse-op" style={{ fontSize: '0.6rem' }}>
+                              <Badge className={`${inst.ltp > inst.supertrend ? 'bg-trading-success' : 'bg-trading-danger'} pill pulse-op`} style={{ fontSize: '0.6rem' }}>
                                 {inst.ltp > inst.supertrend ? 'BUY' : 'SELL'}
                               </Badge>
                             ) : '---'}
@@ -1180,7 +1339,7 @@ const IntradayPage = () => {
                         performanceData.winners.slice(0, 5).map((perf, idx) => (
                           <tr key={idx}>
                             <td className="fw-bold">{perf.symbol}</td>
-                            <td className={perf.total >= 0 ? 'text-success' : 'text-danger'}>
+                            <td className={perf.total >= 0 ? 'text-trading-success' : 'text-trading-danger'}>
                               ₹{perf.total.toFixed(2)}
                             </td>
                             <td className="text-center">
@@ -1215,6 +1374,7 @@ const IntradayPage = () => {
                         <th>LTP</th>
                         <th className="text-center">Logic</th>
                         <th>P&L</th>
+                        <th className="text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1242,8 +1402,18 @@ const IntradayPage = () => {
                                   <i className="bi bi-info-circle"></i>
                                 </Button>
                               </td>
-                              <td className={(pnl || 0) >= 0 ? 'text-success' : 'text-danger'}>
+                              <td className={(pnl || 0) >= 0 ? 'text-trading-success' : 'text-trading-danger'}>
                                 ₹{(pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="text-center">
+                                <Button 
+                                  variant="outline-danger" 
+                                  size="sm" 
+                                  className="py-0 px-2"
+                                  onClick={() => handleSquareOff([pos.symbol])}
+                                >
+                                  CLOSE
+                                </Button>
                               </td>
                             </tr>
                           );
@@ -1401,6 +1571,9 @@ const IntradayPage = () => {
             --header-bg: #f8f9fb;
             --hover-bg: #f1f3f6;
             --input-bg: #ffffff;
+            --trading-green: #089981;
+            --trading-red: #f23645;
+            --trading-yellow: #eab308;
           }
           
           body.dark-mode {
@@ -1413,6 +1586,25 @@ const IntradayPage = () => {
             --header-bg: #161b22;
             --hover-bg: #21262d;
             --input-bg: #0d1117;
+            --trading-green: #089981;
+            --trading-red: #f23645;
+            --trading-yellow: #eab308;
+          }
+
+          .text-trading-success { color: var(--trading-green) !important; }
+          .text-trading-danger { color: var(--trading-red) !important; }
+          .text-trading-warning { color: var(--trading-yellow) !important; }
+          .bg-trading-success { background-color: var(--trading-green) !important; }
+          .bg-trading-danger { background-color: var(--trading-red) !important; }
+
+          .btn-trading-buy {
+            background-color: var(--trading-green) !important;
+            border-color: var(--trading-green) !important;
+            color: #ffffff !important;
+          }
+          .btn-trading-buy:hover {
+            background-color: #067e6a !important;
+            border-color: #067e6a !important;
           }
 
           body {
@@ -1588,7 +1780,7 @@ const IntradayPage = () => {
               <div className="d-flex justify-content-between align-items-center mb-4 p-3 rounded" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <div>
                   <div className="small text-muted uppercase fw-bold mb-1" style={{ letterSpacing: '1px' }}>Action</div>
-                  <Badge bg={selectedTrade.type === 'BUY' ? 'success' : 'danger'} className="fs-5 px-3">
+                  <Badge className={`${selectedTrade.type === 'BUY' ? 'bg-trading-success' : 'bg-trading-danger'} fs-5 px-3`}>
                     {selectedTrade.type}
                   </Badge>
                 </div>
@@ -1737,11 +1929,11 @@ const IntradayPage = () => {
               {performanceData.winners.map(p => (
                 <tr key={p.symbol}>
                   <td className="fw-bold">{p.symbol}</td>
-                  <td className={`text-end ${p.realized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.realized.toFixed(2)}</td>
-                  <td className={`text-end ${p.unrealized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
-                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.total.toFixed(2)}</td>
+                  <td className={`text-end ${p.realized >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.realized.toFixed(2)}</td>
+                  <td className={`text-end ${p.unrealized >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
+                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.total.toFixed(2)}</td>
                   <td className="text-center">
-                    <Badge bg={p.trend === 'UP' ? 'success' : 'danger'}>{p.trend}</Badge>
+                    <Badge className={p.trend === 'UP' ? 'bg-trading-success' : 'bg-trading-danger'}>{p.trend}</Badge>
                   </td>
                 </tr>
               ))}
@@ -1764,9 +1956,9 @@ const IntradayPage = () => {
               {performanceData.losers.map(p => (
                 <tr key={p.symbol}>
                   <td className="fw-bold">{p.symbol}</td>
-                  <td className={`text-end ${p.realized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.realized.toFixed(2)}</td>
-                  <td className={`text-end ${p.unrealized >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
-                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-success' : 'text-danger'}`}>₹{p.total.toFixed(2)}</td>
+                  <td className={`text-end ${p.realized >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.realized.toFixed(2)}</td>
+                  <td className={`text-end ${p.unrealized >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.unrealized.toFixed(2)}</td>
+                  <td className={`text-end fw-bold ${p.total >= 0 ? 'text-trading-success' : 'text-trading-danger'}`}>₹{p.total.toFixed(2)}</td>
                   <td className="text-center">
                     <Badge bg={p.trend === 'UP' ? 'success' : 'danger'}>{p.trend}</Badge>
                   </td>
@@ -1777,7 +1969,10 @@ const IntradayPage = () => {
           </Table>
           
           <div className="text-end mt-4">
-            <Button variant="outline-primary" size="sm" onClick={handleDownloadReport}>
+            <Button variant="danger" className="rounded-pill px-4" onClick={() => handleSquareOff()}>
+              <i className="bi bi-stop-fill me-1"></i> SQUARE OFF ALL POSITIONS
+            </Button>
+            <Button variant="outline-primary" size="sm" className="ms-2" onClick={handleDownloadReport}>
               <i className="bi bi-file-earmark-excel me-1"></i> DOWNLOAD EXCEL REPORT
             </Button>
           </div>
@@ -1870,7 +2065,7 @@ const IntradayPage = () => {
       {/* Market Checklist Modal */}
       <Modal show={showChecklistModal} onHide={() => setShowChecklistModal(false)} size="lg" centered>
         <Modal.Header closeButton className="border-bottom-0">
-          <Modal.Title className="text-warning"><i className="bi bi-journal-check me-2"></i> Algohydrogen Market Routines</Modal.Title>
+          <Modal.Title className="text-trading-warning"><i className="bi bi-journal-check me-2"></i> Algohydrogen Market Routines</Modal.Title>
         </Modal.Header>
         <Modal.Body className="pt-0 px-4 pb-4">
           <div className="row g-4">

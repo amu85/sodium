@@ -12,39 +12,12 @@ function readAlgoConfig() {
     return JSON.parse(fs.readFileSync(ALGO_CONFIG_FILE, 'utf8'));
 }
 
-function getMarketStatus() {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const day = now.getDay(); 
-
-    if (day === 0 || day === 6) return { canTrade: false, shouldSquareOff: false, reason: "Market Closed (Weekend)" };
-
-    const currentTimeInMinutes = hours * 60 + minutes;
-    const startMinutes = 9 * 60 + 20; 
-    const stopMinutes = 15 * 60 + 19; 
-    const marketCloseMinutes = 15 * 60 + 30; 
-
-    if (currentTimeInMinutes < startMinutes) {
-        return { canTrade: false, shouldSquareOff: false, reason: "Waiting for Strategy Start (09:20)" };
-    }
-    
-    if (currentTimeInMinutes > stopMinutes) {
-        if (currentTimeInMinutes <= marketCloseMinutes) {
-            return { canTrade: false, shouldSquareOff: true, reason: "Strategy Stop Reached (15:19). Squaring off..." };
-        }
-        return { canTrade: false, shouldSquareOff: false, reason: "Market Closed (Post 15:30)" };
-    }
-
-    return { canTrade: true, shouldSquareOff: false, reason: "Active" };
-}
-
 async function runEngineCycle() {
     try {
         const config = readAlgoConfig();
         if (!config.autoTradingEnabled) return;
 
-        const marketStatus = getMarketStatus();
+        const marketStatus = intradayService.getMarketStatus();
         
         if (marketStatus.shouldSquareOff) {
             const paperDataFile = path.join(__dirname, '../data/paperTrades.json');
@@ -89,6 +62,44 @@ async function runEngineCycle() {
         
         let availableMargin = paperData.balance - currentUsedMargin;
 
+        // ---------------------------------------------------------
+        // NEW: RISK MANAGEMENT (SAFE PRO MODE)
+        // ---------------------------------------------------------
+        const isSafeMode = config.tradingMode === 'PRO_SAFE';
+
+        if (isSafeMode) {
+            // Calculate Current Daily P&L (Realized + Unrealized)
+            const realizedPnL = paperData.trades.filter(t => {
+                const tradeDate = new Date(t.timestamp).toDateString();
+                const today = new Date().toDateString();
+                return tradeDate === today && t.profit !== undefined;
+            }).reduce((acc, t) => acc + t.profit, 0);
+
+            const unrealizedPnL = paperData.positions.reduce((acc, p) => {
+                const inst = status.instruments.find(i => i.symbol === p.symbol);
+                const ltp = inst ? inst.ltp : p.avgPrice;
+                return acc + (ltp - p.avgPrice) * p.quantity;
+            }, 0);
+
+            const totalDailyPnL = realizedPnL + unrealizedPnL;
+            const lossLimit = config.dailyLossLimit || 10000;
+
+            if (totalDailyPnL <= -lossLimit) {
+                storeLog(`[ENGINE] [SAFE PRO] Trading Halted: Daily Loss Limit Reached (₹${totalDailyPnL.toFixed(2)})`);
+                
+                if (config.autoSquareOffOnLimit && paperData.positions.length > 0) {
+                    storeLog(`[ENGINE] [SAFE PRO] Emergency Square-off triggered.`);
+                    for (const pos of [...paperData.positions]) {
+                        const inst = status.instruments.find(i => i.symbol === pos.symbol);
+                        const exitPrice = inst ? inst.ltp : pos.avgPrice;
+                        const action = pos.quantity > 0 ? 'SELL' : 'BUY';
+                        executePaperOrder(pos.symbol, pos.exchange, action, Math.abs(pos.quantity), exitPrice, "SAFE PRO: Daily Loss Limit Square-off");
+                    }
+                }
+                return; 
+            }
+        }
+
         for (const symbol of symbols) {
             const inst = status.instruments.find(i => i.symbol === symbol);
             if (!inst || !inst.trend || !inst.ltp) continue;
@@ -97,25 +108,21 @@ async function runEngineCycle() {
             const currentTrend = inst.trend;
             
             let action = null;
-            let reason = `Auto-Trade: Global Mode Trend ${currentTrend}`;
+            let reason = `Auto-Trade: Mode=${config.tradingMode || 'STANDARD'} Trend ${currentTrend}`;
 
             if (!position) {
-                // SMARTER ENTRY: Use RSI to avoid buying at peaks or selling at bottoms
-                const rsi = inst.rsi || 50;
-                if (currentTrend === 'UP' && rsi > 70) {
-                    // storeLog(`[ENGINE] Skipping BUY for ${symbol} as RSI (${rsi}) is overbought`);
-                    continue;
-                }
-                if (currentTrend === 'DOWN' && rsi < 30) {
-                    // storeLog(`[ENGINE] Skipping SELL for ${symbol} as RSI (${rsi}) is oversold`);
+                // SAFE PRO: Max Concurrent Positions Check
+                if (isSafeMode && paperData.positions.length >= (config.maxConcurrentPositions || 5)) {
                     continue;
                 }
 
-                // MARGIN CHECK: Only enter if we have enough virtual funds (assuming 5x leverage)
+                const rsi = inst.rsi || 50;
+                if (currentTrend === 'UP' && rsi > 70) continue;
+                if (currentTrend === 'DOWN' && rsi < 30) continue;
+
                 const requiredMargin = (inst.ltp * defaultQty) / 5;
-                if (availableMargin < requiredMargin) {
-                    continue;
-                }
+                if (availableMargin < requiredMargin) continue;
+                
                 action = currentTrend === 'UP' ? 'BUY' : 'SELL';
                 availableMargin -= requiredMargin;
             } else {
@@ -131,14 +138,11 @@ async function runEngineCycle() {
 
             if (action) {
                 storeLog(`[ENGINE] Signal for ${symbol}: ${currentTrend}. Executing ${action} ${defaultQty}`);
-                
-                // Call placePaperOrder logic
-                // We'll use a simplified internal version of placePaperOrder to avoid HTTP overhead
                 executePaperOrder(symbol, inst.exchange, action, defaultQty, inst.ltp, reason);
                 
-                // Refresh paperData for next symbol in same cycle
-                paperData.positions = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/paperTrades.json'), 'utf8')).positions;
-                paperData.balance = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/paperTrades.json'), 'utf8')).balance;
+                const freshData = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/paperTrades.json'), 'utf8'));
+                paperData.positions = freshData.positions;
+                paperData.balance = freshData.balance;
             }
         }
     } catch (err) {

@@ -163,6 +163,9 @@ async function startTicker(apiKey, accessToken, tokens, tokenSymbolMap = {}) {
         access_token: accessToken
     });
 
+    // Enable automatic reconnection (5 retries, 5s interval)
+    tickerInstance.autoReconnect(true, 5, 5);
+
     tickerInstance.on("connect", () => {
         tickerConnected = true;
         storeLog("[INTRADAY] Ticker connected");
@@ -220,6 +223,33 @@ function stopTicker() {
 /**
  * Calculate effective multiplier based on whipsaws if adaptive mode is ON
  */
+function getMarketStatus() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const day = now.getDay(); 
+
+    if (day === 0 || day === 6) return { canTrade: false, shouldSquareOff: false, status: "CLOSED", reason: "Market Closed (Weekend)" };
+
+    const currentTimeInMinutes = hours * 60 + minutes;
+    const startMinutes = 9 * 60 + 20; 
+    const stopMinutes = 15 * 60 + 19; 
+    const marketCloseMinutes = 15 * 60 + 30; 
+
+    if (currentTimeInMinutes < startMinutes) {
+        return { canTrade: false, shouldSquareOff: false, status: "WAITING", reason: "Waiting for Strategy Start (09:20)" };
+    }
+    
+    if (currentTimeInMinutes > stopMinutes) {
+        if (currentTimeInMinutes <= marketCloseMinutes) {
+            return { canTrade: false, shouldSquareOff: true, status: "SQUARING_OFF", reason: "Strategy Stop Reached (15:19). Squaring off..." };
+        }
+        return { canTrade: false, shouldSquareOff: false, status: "CLOSED", reason: "Market Closed (Post 15:30)" };
+    }
+
+    return { canTrade: true, shouldSquareOff: false, status: "ACTIVE", reason: "Active" };
+}
+
 function getEffectiveMultiplier(candles, basePeriod, baseMultiplier) {
     try {
         if (!fs.existsSync(ALGO_CONFIG_FILE)) return baseMultiplier;
@@ -284,6 +314,7 @@ function getStatus(period = 10, multiplier = 1.5) {
     return {
         success: true,
         ticker_connected: tickerConnected,
+        market_status: getMarketStatus(),
         instruments,
         timestamp: formatDate(new Date())
     };
@@ -313,10 +344,19 @@ function getCandles(token, limit = 100, period = 10, multiplier = 1.5) {
     };
 }
 
+function resetData() {
+    instrumentData = {};
+    historicalLoaded.clear();
+    storeLog("[INTRADAY] All instrument data and historical flags have been reset.");
+    return true;
+}
+
 module.exports = {
     startTicker,
     stopTicker,
     getStatus,
     getCandles,
+    getMarketStatus,
+    resetData,
     tickerConnected: () => tickerConnected
 };

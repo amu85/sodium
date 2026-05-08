@@ -9,7 +9,9 @@ router.post("/adaptive", algoController.toggleAdaptive);
 router.post("/settings", algoController.updateSettings);
 router.post("/toggle", algoController.toggleAutoTrade);
 router.post("/stocks", algoController.updateAlgoStocks);
+router.get("/config", algoController.getAlgoConfig);
 router.post("/config", algoController.updateSettings);
+router.post("/risk", algoController.updateRiskSettings);
 router.post("/reset", algoController.resetAlgo);
 
 module.exports = router;
